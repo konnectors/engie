@@ -6,33 +6,25 @@ const {
 } = require('cozy-konnector-libs')
 
 const request = requestFactory({
-  // the debug mode shows all the details about http request and responses. Very useful for
-  // debugging but very verbose. That is why it is commented out by default
   debug: false,
-  // activates [cheerio](https://cheerio.js.org/) parsing on each page
   cheerio: true,
-  // If cheerio is activated do not forget to deactivate json parsing (which is activated by
-  // default in cozy-konnector-libs
   json: false,
-  // this allows request-promise to keep cookies between requests
   jar: true,
   resolveWithFullResponse: true
 })
-let jarjar = []
-let refBP = ''
-let _ = Math.floor(new Date().getTime() / 1000)
-
 module.exports = new BaseKonnector(start)
 
 async function start(fields) {
+  let _ = Math.floor(new Date().getTime() / 1000)
+
   await getLoginCookie()
   await authenticate(fields.login, fields.password)
   await getAuthenticationToken(fields.login, fields.password)
-  await createAuthenticationCookie()
-  await getCustomerAccountData()
-  await getBPCCCookie()
-  await getBillCookies()
-  await fetchBills(fields)
+  await createAuthenticationCookie(_)
+  let refBP = await getCustomerAccountData(_)
+  await getBPCCCookie(refBP)
+  await getBillCookies(_)
+  await fetchBills(fields, _)
 }
 
 function getLoginCookie() {
@@ -50,8 +42,7 @@ function authenticate(login, password) {
     uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
-      'set-cookie': jarjar
+      'content-type': 'application/json'
     },
     body: JSON.stringify({
       composante: 'CEL',
@@ -80,7 +71,7 @@ function getAuthenticationToken(login, password) {
   })
 }
 
-function createAuthenticationCookie() {
+function createAuthenticationCookie(_) {
   log('info', 'Create the authentication cookie...')
 
   return request({
@@ -94,7 +85,7 @@ function createAuthenticationCookie() {
   })
 }
 
-function getCustomerAccountData() {
+function getCustomerAccountData(_) {
   log('info', 'Get customer account data...')
 
   return request({
@@ -109,14 +100,12 @@ function getCustomerAccountData() {
     }
   }).then($ => {
     let json = JSON.parse($.body.text())
-    refBP = json.refBP
-    jarjar.push('Cel_BP=' + refBP + '; ')
 
-    jarjar = jarjar.concat($.headers['set-cookie'])
+    return json.refBP
   })
 }
 
-function getBPCCCookie() {
+function getBPCCCookie(refBP) {
   log('info', 'Get the BBPC cookie...')
 
   return request({
@@ -132,7 +121,7 @@ function getBPCCCookie() {
   })
 }
 
-function getBillCookies() {
+function getBillCookies(_) {
   log('info', 'Get cookies to be allowed to get bills...')
 
   return request({
@@ -148,7 +137,7 @@ function getBillCookies() {
   })
 }
 
-function fetchBills(fields) {
+function fetchBills(fields, _) {
   log('info', 'Fetch bills...')
 
   return request({
@@ -177,17 +166,26 @@ function fetchBills(fields) {
         encodeURIComponent('N°') +
         bill.numeroFacture +
         '.pdf'
+      let billDate = new Date(bill.dateFacture)
 
       bills.push({
         isRefund: false,
         subtype: bill.libelle,
         type: 'bill',
         vendor: 'engie',
-        date: new Date(bill.dateFacture * 1000),
+        date: billDate,
         amount: bill.montantTTC.montant,
         currency: 'EUR',
         fileurl: pdfUrl,
-        filename: bill.libelle + '-' + bill.dateFacture + '.pdf',
+        filename:
+          billDate.getFullYear() +
+          ('0' + (billDate.getMonth() + 1)).slice(-2) +
+          ('0' + (test.getDay() + 1)).slice(-2) +
+          '_ENGIE_' +
+          bill.libelle +
+          '-' +
+          bill.dateFacture +
+          '.pdf',
         vendorRef: bill.numeroFacture
       })
     })
