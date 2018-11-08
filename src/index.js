@@ -169,7 +169,6 @@ function fetchBills(fields, _) {
       let billDate = new Date(bill.dateFacture)
 
       bills.push({
-        isRefund: false,
         subtype: bill.libelle,
         type: 'bill',
         vendor: 'engie',
@@ -191,7 +190,7 @@ function fetchBills(fields, _) {
     })
 
     saveBills(bills, fields, {
-      identifiers: ['vendor']
+      identifiers: ['engie']
     })
   })
 }
