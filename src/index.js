@@ -155,14 +155,14 @@ function fetchBills(fields, _) {
     let bills = []
 
     data.listeFactures.map(bill => {
-      let test = new Date(bill.dateFacture)
+      let date = new Date(bill.dateFacture)
       let pdfUrl =
         'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
         encodeURIComponent(bill.url) +
         '/SAE/' +
-        ('0' + (test.getDay() + 1)).slice(-2) +
-        ('0' + (test.getMonth() + 1)).slice(-2) +
-        test.getFullYear() +
+        ('0' + (date.getDay() + 1)).slice(-2) +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        date.getFullYear() +
         encodeURIComponent('N°') +
         bill.numeroFacture +
         '.pdf'
@@ -171,7 +171,7 @@ function fetchBills(fields, _) {
       bills.push({
         subtype: bill.libelle,
         type: 'bill',
-        vendor: 'engie',
+        vendor: 'Engie Sa',
         date: billDate,
         amount: bill.montantTTC.montant,
         currency: 'EUR',
@@ -179,7 +179,7 @@ function fetchBills(fields, _) {
         filename:
           billDate.getFullYear() +
           ('0' + (billDate.getMonth() + 1)).slice(-2) +
-          ('0' + (test.getDay() + 1)).slice(-2) +
+          ('0' + (date.getDay() + 1)).slice(-2) +
           '_ENGIE_' +
           bill.libelle +
           '-' +
