@@ -1,10 +1,10 @@
 {
-  "name": "cozy-konnector-template",
+  "name": "cozy-konnector-engie",
   "version": "1.0.0",
   "description": "",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/konnectors/cozy-konnector-template.git"
+    "url": "git+https://github.com/konnectors/engie.git"
   },
   "keywords": [],
   "author": "Cozy Cloud",
@@ -29,25 +29,25 @@
     "build": "webpack",
     "precommit": "yarn lint",
     "lint": "eslint --fix .",
-    "deploy": "git-directory-deploy --directory build/ --branch ${DEPLOY_BRANCH:-build} --repo=${DEPLOY_REPOSITORY:-https://$GITHUB_TOKEN@github.com/konnectors/cozy-konnector-template.git}",
+    "deploy": "git-directory-deploy --directory build/ --branch ${DEPLOY_BRANCH:-build} --repo=${DEPLOY_REPOSITORY:-https://$GITHUB_TOKEN@github.com/konnectors/engie.git}",
     "cozyPublish": "cozy-app-publish --token $REGISTRY_TOKEN --build-commit $(git rev-parse ${DEPLOY_BRANCH:-build})",
     "travisDeployKey": "./bin/generate_travis_deploy_key"
   },
   "dependencies": {
-    "cozy-konnector-libs": "4.11.2"
+    "cozy-konnector-libs": "4.11.8"
   },
   "devDependencies": {
-    "@symfony/webpack-encore": "^0.20.1",
-    "copy-webpack-plugin": "4.5.3",
+    "@symfony/webpack-encore": "^0.22.1",
+    "copy-webpack-plugin": "4.6.0",
     "cozy-app-publish": "0.9.0",
-    "cozy-jobs-cli": "1.5.1",
-    "eslint": "5.7.0",
+    "cozy-jobs-cli": "1.5.8",
+    "eslint": "5.9.0",
     "eslint-config-cozy-app": "1.1.4",
     "git-directory-deploy": "1.5.1",
-    "husky": "1.1.2",
+    "husky": "1.2.0",
     "konitor": "0.10.0",
     "svgo": "1.1.1",
-    "webpack": "4.21.0",
+    "webpack": "4.26.0",
     "webpack-cli": "3.1.2"
   }
 }
