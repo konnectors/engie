@@ -68,22 +68,28 @@ async function authenticate(login, password) {
   }
 }
 
-function getAuthenticationToken(login, password) {
+async function getAuthenticationToken(login, password) {
   log('info', 'Get the authentication token...')
 
-  return request({
-    uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      composante: 'CEL',
-      compteActif: 'true',
-      login: login,
-      motDePasse: password
+  try {
+    const result = await request({
+      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        composante: 'CEL',
+        compteActif: 'true',
+        login: login,
+        motDePasse: password
+      })
     })
-  })
+    return result
+  } catch (err) {
+    log('error', err.message)
+    throw new Error(errors.VENDOR_DOWN)
+  }
 }
 
 function createAuthenticationCookie(_) {
@@ -182,13 +188,17 @@ function fetchBills(fields, _) {
         bill.numeroFacture +
         '.pdf'
       let billDate = new Date(bill.dateFacture)
+      const isRefund = Boolean(bill.montantTTC.montant < 0)
+      let amount = bill.montantTTC.montant
+      if (isRefund) amount = Math.abs(amount)
 
       bills.push({
         subtype: bill.libelle,
         type: 'bill',
         vendor: 'Engie Sa',
         date: billDate,
-        amount: bill.montantTTC.montant,
+        amount,
+        isRefund,
         currency: 'EUR',
         fileurl: pdfUrl,
         filename:

@@ -1,11 +1,4 @@
 var path = require('path')
-//var Encore = require('@symfony/webpack-encore')
-
-//Encore.setOutputPath(path.join(__dirname, 'build') + '/index.js')
-
-//let config = Encore.getWebpackConfig()
-
-//var path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
 const fs = require('fs')
 const SvgoInstance = require('svgo')
@@ -41,7 +34,14 @@ module.exports = {
       { from: '.travis.yml' },
       { from: 'LICENSE' }
     ])
-  ]
+  ],
+  module: {
+    // to ignore the warnings like :
+    // WARNING in ../libs/node_modules/bindings/bindings.js 76:22-40
+    // Critical dependency: the request of a dependency is an expression
+    // Since we cannot change this dependency. I think it won't hide more important messages
+    exprContextCritical: false
+  }
 }
 
 function optimizeSVGIcon(buffer, path) {
