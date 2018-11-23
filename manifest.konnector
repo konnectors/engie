@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Engie",
   "type": "konnector",
   "language": "node",
@@ -8,7 +8,9 @@
   "source": "git@github.com:konnectors/engie.git",
   "editor": "johnkrovitch",
   "vendor_link": "Link to the target website",
-  "categories": ["other"],
+  "categories": [
+    "other"
+  ],
   "fields": {
     "login": {
       "type": "text"
@@ -39,14 +41,19 @@
     },
     "accounts": {
       "type": "io.cozy.accounts",
-      "verbs": ["GET"]
+      "verbs": [
+        "GET"
+      ]
     }
   },
   "developer": {
     "name": "Arnaud Frézet",
     "url": "https://github.com/larriereguichet"
   },
-  "langs": ["fr", "en"],
+  "langs": [
+    "fr",
+    "en"
+  ],
   "locales": {
     "fr": {
       "short_description": "Récupère vos factures",
