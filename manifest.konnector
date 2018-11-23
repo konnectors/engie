@@ -3,12 +3,14 @@
   "name": "Engie",
   "type": "konnector",
   "language": "node",
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "slug": "engie",
   "source": "git@github.com:konnectors/engie.git",
   "editor": "johnkrovitch",
-  "vendor_link": "Link to the target website",
-  "categories": ["other"],
+  "vendor_link": "https://particuliers.engie.fr/login-page.html",
+  "categories": [
+    "energy"
+  ],
   "fields": {
     "login": {
       "type": "text"
@@ -49,8 +51,8 @@
   "langs": ["fr", "en"],
   "locales": {
     "fr": {
-      "short_description": "Récupère vos factures",
-      "long_description": "Récupère vos factures",
+      "short_description": "Récupère vos factures sur votre espace particuliers",
+      "long_description": "Récupère vos factures sur votre espace particuliers",
       "permissions": {
         "bank operations": {
           "description": "Utilisé pour relier les factures à des operations bancaires"
@@ -67,8 +69,8 @@
       }
     },
     "en": {
-      "short_description": "Fetch your bills",
-      "long_description": "Fetch your bills",
+      "short_description": "Fetch your bills on your personnal account",
+      "long_description": "Fetch your bills on your personnal account",
       "permissions": {
         "bank operations": {
           "description": "Required to link bank operations to bills"
