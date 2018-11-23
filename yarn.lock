@@ -697,7 +697,7 @@
   dependencies:
     unicode-trie "^0.3.0"
 
-"@symfony/webpack-encore@^0.22.1":
+"@symfony/webpack-encore@0.22.1":
   version "0.22.1"
   resolved "https://registry.yarnpkg.com/@symfony/webpack-encore/-/webpack-encore-0.22.1.tgz#76d04666c62ee693ddf5090b5d6f9f32169af3a9"
   integrity sha512-HR3cFMJMHOs5QUQFo8SmAx3bAqrixlry2F6pt5lNbVm8f/X+jpov/8jRHL+sCt3dOVbJLCoLmSZj/qweq0lQ4Q==
