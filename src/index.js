@@ -194,8 +194,7 @@ function fetchBills(fields, _) {
 
       bills.push({
         subtype: bill.libelle,
-        type: 'bill',
-        vendor: 'Engie Sa',
+        vendor: 'Engie',
         date: billDate,
         amount,
         isRefund,
