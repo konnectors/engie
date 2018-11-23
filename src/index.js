@@ -6,11 +6,12 @@ const {
   BaseKonnector,
   requestFactory,
   saveBills,
-  log
+  log,
+  errors
 } = require('cozy-konnector-libs')
 
 const request = requestFactory({
-  debug: false,
+  // debug: true,
   cheerio: true,
   json: false,
   jar: true,
@@ -39,22 +40,32 @@ function getLoginCookie() {
   })
 }
 
-function authenticate(login, password) {
+async function authenticate(login, password) {
   log('info', 'Authenticate to the main API...')
 
-  return request({
-    uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      composante: 'CEL',
-      compteActif: 'true',
-      login: login,
-      motDePasse: password
+  try {
+    return await request({
+      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        composante: 'CEL',
+        compteActif: 'true',
+        login: login,
+        motDePasse: password
+      })
     })
-  })
+  } catch (err) {
+    if (err.statusCode === 401) {
+      log('error', err.message)
+      throw new Error(errors.LOGIN_FAILED)
+    } else if (err.statusCode !== 200) {
+      log('error', err.message)
+      throw new Error(errors.VENDOR_DOWN)
+    }
+  }
 }
 
 function getAuthenticationToken(login, password) {
