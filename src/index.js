@@ -58,7 +58,8 @@ async function authenticate(login, password) {
       })
     })
   } catch (err) {
-    if (err.statusCode === 401) {
+    if (err.statusCode === 401 || err.statusCode === 425) {
+      // 425 is for GUT_ERR_TECH_CONNEXION_LOGIN_INEXISTANT in engie api
       log('error', err.message)
       throw new Error(errors.LOGIN_FAILED)
     } else if (err.statusCode !== 200) {
