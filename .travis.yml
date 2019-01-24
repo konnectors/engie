@@ -1,0 +1,41 @@
+language: node_js
+node_js:
+- '8'
+env:
+  global:
+  - GH_USER_EMAIL="travis@example.org"
+  - GH_USER_NAME="cozy-bot"
+  - DEPLOY_REPOSITORY="git@github.com:konnectors/engie.git"
+  - secure: Lc+Q+hDerGZUEpyj4eSCcc8m/Y7MbNv/n+pWomhY4aB2N6yjxilVpUHqIIzBTWhdWTIQAw0c4yXUdb4w49jqIAUSFoPnxf3GKVBSviVrH9CCWHcGsHGenFtxw2o1nqbFGz/Sr+s6lMGniq6UzpPPYwX1qC3jMZx85TLWlS4XdngzyQjkuBpuVEbQYSUMl3XxFsHQzYU2ACQNm6Dhaz7mMIy/ljSoDb2INcGk1KZw81L9SlfaGFUYwKvec8G5AerbTj7qLm+FWK9oY8ilXDjk9EHNs5kNYTlxtDP1em+cCF2y7uavXPV7cVQXESbixTWD77wjbvw/fIUcek3ITeU5vKyuBfcjc8E6fZ6UsRMUhnx41PGvDjH1U+3hGiRHjSSA5RGToOTd5YnlcfdVgtDTWdzc4rCwpFAnO0h4cvp0cpmTJhLiePrqxZTL+NazPRTFpFYFk6dFsnJmBSgOGxdC2Wbie0NRHqSP8MR6gkEb9jpeIZNBxV3WYo/VPlLRM+rkhwds22nsE4OWIuGKtyMshPoauGNaiBdk/APCjmCdL4Hh4rU2BBb/6SewCFwf4NdTCBgCwiH2kz6PtrNNpcMNdZOWlBrSZaX/FyW5N07tE7vqRAwSJ1DWsfv0+rPutevm6rMBwenjYWwSFHmETMGJLMFjRasUKofaj6RvYG39SyA=
+cache:
+  yarn: true
+  directories:
+  - node_modules
+branches:
+  except:
+  - build
+  - build-debug
+script:
+- yarn lint
+- yarn build
+- yarn run check
+deploy:
+- provider: script
+  skip-cleanup: true
+  script: DEPLOY_BRANCH=build yarn deploy && yarn cozyPublish
+  on:
+    branch: master
+- provider: script
+  skip-cleanup: true
+  script: DEPLOY_BRANCH=build yarn deploy && yarn cozyPublish
+  on:
+    tags: true
+before_install:
+- openssl aes-256-cbc -K $encrypted_54ce064105de_key -iv $encrypted_54ce064105de_iv
+  -in github_deploy_key.enc -out /tmp/github_deploy_key -d
+- eval "$(ssh-agent -s)"
+- chmod 600 /tmp/github_deploy_key
+- ssh-add /tmp/github_deploy_key
+after_deploy:
+- rm /tmp/github_deploy_key
+- ssh-add -D
