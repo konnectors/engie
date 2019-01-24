@@ -71,25 +71,44 @@ async function authenticate(login, password) {
 
 async function getAuthenticationToken(login, password) {
   log('info', 'Get the authentication token...')
+  let retry = 10
 
-  try {
-    const result = await request({
-      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        composante: 'CEL',
-        compteActif: 'true',
-        login: login,
-        motDePasse: password
+  while (retry > 0) {
+    try {
+      const result = await request({
+        uri:
+          'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          composante: 'CEL',
+          compteActif: 'true',
+          login: login,
+          motDePasse: password
+        })
       })
-    })
-    return result
-  } catch (err) {
-    log('error', err.message)
-    throw new Error(errors.VENDOR_DOWN)
+      return result
+    } catch (err) {
+      if (
+        err.statusCode === 401 &&
+        retry > 1 &&
+        err.error ===
+          '{"code":null,"message":"The resource owner could not be authenticated due to missing or invalid credentials"}'
+      ) {
+        retry--
+        log(
+          'warn',
+          `We got a 401 on getAuthenticationToken, retrying ${retry} times`
+        )
+        let sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+        await sleep(5000)
+      } else {
+        log('error', err.message)
+        throw new Error(errors.VENDOR_DOWN)
+      }
+    }
   }
 }
 
