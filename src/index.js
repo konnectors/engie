@@ -23,13 +23,23 @@ async function start(fields) {
   let _ = Math.floor(new Date().getTime() / 1000)
 
   await getLoginCookie()
-  await authenticate(fields.login, fields.password)
-  await getAuthenticationToken(fields.login, fields.password)
-  await createAuthenticationCookie(_)
-  let refBP = await getCustomerAccountData(_)
-  await getBPCCCookie(refBP)
-  await getBillCookies(_)
-  await fetchBills(fields, _)
+  const status = await authenticate(fields.login, fields.password)
+
+  if (status === 'engie') {
+    await getAuthenticationToken(fields.login, fields.password)
+    await createAuthenticationCookie(_, status)
+    let refBP = await getCustomerAccountData(_, status)
+    await getBPCCCookie(refBP, status)
+    await getBillCookies(_, status)
+    await fetchBills(fields, _, status)
+  } else if (status === 'gazTarifReglemente') {
+    await createAuthenticationCookie(_, status)
+    await authenticateGazTarifReglemente(fields.login, fields.password)
+    let refBP = await getCustomerAccountData(_, status)
+    await getBPCCCookie(refBP, status)
+    await getBillCookies(_, status)
+    await fetchBills(fields, _, status)
+  }
 }
 
 function getLoginCookie() {
@@ -42,9 +52,8 @@ function getLoginCookie() {
 
 async function authenticate(login, password) {
   log('info', 'Authenticate to the main API...')
-
   try {
-    return await request({
+    await request({
       uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
       method: 'POST',
       headers: {
@@ -58,7 +67,11 @@ async function authenticate(login, password) {
       })
     })
   } catch (err) {
-    if (err.statusCode === 401 || err.statusCode === 425) {
+    if (err.statusCode === 404 &&
+        err.error === '{"code":"COMPTE_PAS_LIE_COMPOSANTE","message":null}') {
+      log('info', 'Detecting gaz-tarif-reglemente.fr account')
+      return 'gazTarifReglemente'
+    } else if (err.statusCode === 401 || err.statusCode === 425) {
       // 425 is for GUT_ERR_TECH_CONNEXION_LOGIN_INEXISTANT in engie api
       log('error', err.message)
       throw new Error(errors.LOGIN_FAILED)
@@ -67,7 +80,42 @@ async function authenticate(login, password) {
       throw new Error(errors.VENDOR_DOWN)
     }
   }
+  // If login successfull
+  return 'engie'
 }
+
+async function authenticateGazTarifReglemente(login, password) {
+  log('info', 'Authenticate to the main API on gaz-tarif-reglemente.fr ...')
+  try {
+    await request({
+      uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        composante: 'CELTR',
+        compteActif: 'true',
+        login: login,
+        motDePasse: password
+      })
+    })
+  } catch (err) {
+    // Bad password detected here, bad login detected at first auth (engie) for now
+    if (err.statusCode === 401) {
+      log('error', 'Login was at gaz-tarif-reglemente.fr')
+      log('error', err.message)
+      throw new Error(errors.LOGIN_FAILED)
+    } else if (err.statusCode !== 200) {
+      log('error', err.message)
+      throw new Error(errors.VENDOR_DOWN)
+    }
+  }
+
+  // If login successfull
+  return 'gazTarifReglemente'
+}
+
 
 async function getAuthenticationToken(login, password) {
   log('info', 'Get the authentication token...')
@@ -112,12 +160,19 @@ async function getAuthenticationToken(login, password) {
   }
 }
 
-function createAuthenticationCookie(_) {
+function createAuthenticationCookie(_, status) {
   log('info', 'Create the authentication cookie...')
+  let uri
+  if (status === 'engie') {
+    uri = 'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie'
+  } else if (status === 'gazTarifReglemente') {
+    uri = 'https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie'
+  } else {
+    throw new Error('Should never happen, error during login')
+  }
 
   return request({
-    url:
-      'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie',
+    uri,
     qs: {
       param: _,
       _: _
@@ -126,12 +181,19 @@ function createAuthenticationCookie(_) {
   })
 }
 
-function getCustomerAccountData(_) {
+function getCustomerAccountData(_, status) {
   log('info', 'Get customer account data...')
+  let uri
+  if (status === 'engie') {
+    uri = 'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient'
+  } else if (status === 'gazTarifReglemente') {
+    uri = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
+  } else {
+    throw new Error('Should never happen, error during login')
+  }
 
   return request({
-    uri:
-      'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient',
+    uri,
     method: 'GET',
     qs: {
       _: _
@@ -141,16 +203,23 @@ function getCustomerAccountData(_) {
     }
   }).then($ => {
     let json = JSON.parse($.body.text())
-
     return json.refBP
   })
 }
 
-function getBPCCCookie(refBP) {
+function getBPCCCookie(refBP, status) {
   log('info', 'Get the BBPC cookie...')
+  let uri
+  if (status === 'engie') {
+    uri = 'https://particuliers.engie.fr/cel-ws/api/private/cookie/cookiesBPCC'
+  } else if (status === 'gazTarifReglemente') {
+    uri = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/session/set'
+  } else {
+    throw new Error('Should never happen, error during login')
+  }
 
   return request({
-    uri: 'https://particuliers.engie.fr/cel-ws/api/private/cookie/cookiesBPCC',
+    uri,
     method: 'POST',
     headers: {
       'content-type': 'application/json'
@@ -162,11 +231,19 @@ function getBPCCCookie(refBP) {
   })
 }
 
-function getBillCookies(_) {
+function getBillCookies(_, status) {
   log('info', 'Get cookies to be allowed to get bills...')
+  let uri
+  if (status === 'engie') {
+    uri = 'https://particuliers.engie.fr/cel-ws/api/private/compteenligne'
+  } else if (status === 'gazTarifReglemente') {
+    uri = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/compteenligne'
+  } else {
+    throw new Error('Should never happen, error during login')
+  }
 
   return request({
-    uri: 'https://particuliers.engie.fr/cel-ws/api/private/compteenligne',
+    uri,
     qs: {
       _: _,
       prechargerFacture: true,
@@ -178,11 +255,21 @@ function getBillCookies(_) {
   })
 }
 
-function fetchBills(fields, _) {
+async function fetchBills(fields, _, status) {
   log('info', 'Fetch bills...')
+  let uri1, uri2
+  if (status === 'engie') {
+    uri1 = 'https://particuliers.engie.fr/cel-ws/api/private/factures'
+    uri2 = 'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
+  } else if (status === 'gazTarifReglemente') {
+    uri1 = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/factures'
+    uri2 = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/document/mobile/'
+  } else {
+    throw new Error('Should never happen, error during login')
+  }
 
   return request({
-    uri: 'https://particuliers.engie.fr/cel-ws/api/private/factures',
+    uri: uri1,
     qs: {
       dateDebutIntervalle: new Date('2000-01-01').toISOString(),
       dateFinIntervalle: new Date().toISOString(),
@@ -191,14 +278,14 @@ function fetchBills(fields, _) {
     headers: {
       'content-type': 'application/json'
     }
-  }).then($ => {
+  }).then(async $ => {
     let data = JSON.parse($.body.text())
     let bills = []
 
     data.listeFactures.map(bill => {
       let date = new Date(bill.dateFacture)
       let pdfUrl =
-        'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
+        uri2 +
         encodeURIComponent(bill.url) +
         '/SAE/' +
         ('0' + (date.getDay() + 1)).slice(-2) +
@@ -233,7 +320,7 @@ function fetchBills(fields, _) {
       })
     })
 
-    saveBills(bills, fields, {
+    await saveBills(bills, fields, {
       identifiers: ['engie']
     })
   })
