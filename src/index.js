@@ -67,8 +67,10 @@ async function authenticate(login, password) {
       })
     })
   } catch (err) {
-    if (err.statusCode === 404 &&
-        err.error === '{"code":"COMPTE_PAS_LIE_COMPOSANTE","message":null}') {
+    if (
+      err.statusCode === 404 &&
+      err.error === '{"code":"COMPTE_PAS_LIE_COMPOSANTE","message":null}'
+    ) {
       log('info', 'Detecting gaz-tarif-reglemente.fr account')
       return 'gazTarifReglemente'
     } else if (err.statusCode === 401 || err.statusCode === 425) {
@@ -88,7 +90,8 @@ async function authenticateGazTarifReglemente(login, password) {
   log('info', 'Authenticate to the main API on gaz-tarif-reglemente.fr ...')
   try {
     await request({
-      uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
+      uri:
+        'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
       method: 'POST',
       headers: {
         'content-type': 'application/json'
@@ -115,7 +118,6 @@ async function authenticateGazTarifReglemente(login, password) {
   // If login successfull
   return 'gazTarifReglemente'
 }
-
 
 async function getAuthenticationToken(login, password) {
   log('info', 'Get the authentication token...')
@@ -164,9 +166,11 @@ function createAuthenticationCookie(_, status) {
   log('info', 'Create the authentication cookie...')
   let uri
   if (status === 'engie') {
-    uri = 'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie'
+    uri =
+      'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie'
   } else if (status === 'gazTarifReglemente') {
-    uri = 'https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie'
+    uri =
+      'https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie'
   } else {
     throw new Error('Should never happen, error during login')
   }
@@ -185,9 +189,11 @@ function getCustomerAccountData(_, status) {
   log('info', 'Get customer account data...')
   let uri
   if (status === 'engie') {
-    uri = 'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient'
+    uri =
+      'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient'
   } else if (status === 'gazTarifReglemente') {
-    uri = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
+    uri =
+      'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
   } else {
     throw new Error('Should never happen, error during login')
   }
@@ -263,7 +269,8 @@ async function fetchBills(fields, _, status) {
     uri2 = 'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
   } else if (status === 'gazTarifReglemente') {
     uri1 = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/factures'
-    uri2 = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/document/mobile/'
+    uri2 =
+      'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/document/mobile/'
   } else {
     throw new Error('Should never happen, error during login')
   }
@@ -283,39 +290,53 @@ async function fetchBills(fields, _, status) {
     let bills = []
 
     data.listeFactures.map(bill => {
-      let date = new Date(bill.dateFacture)
-      let pdfUrl =
+      const date = new Date(bill.dateFacture)
+      const pdfUrl =
         uri2 +
         encodeURIComponent(bill.url) +
         '/SAE/' +
-        ('0' + (date.getDay() + 1)).slice(-2) +
+        ('0' + (date.getDate() + 1)).slice(-2) +
         ('0' + (date.getMonth() + 1)).slice(-2) +
         date.getFullYear() +
         encodeURIComponent('N°') +
         bill.numeroFacture +
         '.pdf'
-      let billDate = new Date(bill.dateFacture)
       const isRefund = Boolean(bill.montantTTC.montant < 0)
       let amount = bill.montantTTC.montant
       if (isRefund) amount = Math.abs(amount)
+      const oldFilename =
+        date.getFullYear() +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        ('0' + (date.getDay() + 1)).slice(-2) +
+        '_ENGIE_' +
+        bill.libelle +
+        '-' +
+        bill.dateFacture +
+        '.pdf'
+      const filename =
+        date.getFullYear() +
+        '-' +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        '-' +
+        ('0' + (date.getDate() + 1)).slice(-2) +
+        '_ENGIE_' +
+        amount.toFixed(2) +
+        '€_' +
+        bill.libelle.replace(' ', '-') +
+        '_' +
+        bill.numeroFacture +
+        '.pdf'
 
       bills.push({
         subtype: bill.libelle,
         vendor: 'Engie',
-        date: billDate,
+        date: date,
         amount,
         isRefund,
         currency: 'EUR',
         fileurl: pdfUrl,
-        filename:
-          billDate.getFullYear() +
-          ('0' + (billDate.getMonth() + 1)).slice(-2) +
-          ('0' + (date.getDay() + 1)).slice(-2) +
-          '_ENGIE_' +
-          bill.libelle +
-          '-' +
-          bill.dateFacture +
-          '.pdf',
+        filename: filename,
+        shouldReplaceName: oldFilename,
         vendorRef: bill.numeroFacture
       })
     })
