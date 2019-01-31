@@ -27,19 +27,15 @@ async function start(fields) {
 
   if (status === 'engie') {
     await getAuthenticationToken(fields.login, fields.password)
-    await createAuthenticationCookie(_, status)
-    let refBP = await getCustomerAccountData(_, status)
-    await getBPCCCookie(refBP, status)
-    await getBillCookies(_, status)
-    await fetchBills(fields, _, status)
-  } else if (status === 'gazTarifReglemente') {
-    await createAuthenticationCookie(_, status)
-    await authenticateGazTarifReglemente(fields.login, fields.password)
-    let refBP = await getCustomerAccountData(_, status)
-    await getBPCCCookie(refBP, status)
-    await getBillCookies(_, status)
-    await fetchBills(fields, _, status)
   }
+  await createAuthenticationCookie(_, status)
+  if (status === 'gazTarifReglemente') {
+    await authenticateGazTarifReglemente(fields.login, fields.password)
+  }
+  let refBP = await getCustomerAccountData(_, status)
+  await getBPCCCookie(refBP, status)
+  await getBillCookies(_, status)
+  await fetchBills(fields, _, status)
 }
 
 function getLoginCookie() {
