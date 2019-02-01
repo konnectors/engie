@@ -322,7 +322,7 @@ async function fetchBills(fields, _, status) {
         '_ENGIE_' +
         amount.toFixed(2) +
         '€_' +
-        bill.libelle.replace(' ', '-') +
+        bill.libelle.replace(/ /g, '-') +
         '_' +
         bill.numeroFacture +
         '.pdf'
