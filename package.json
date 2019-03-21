@@ -12,7 +12,7 @@
   "main": "./src/index.js",
   "eslintConfig": {
     "extends": [
-      "eslint-config-cozy-app"
+      "cozy-app"
     ]
   },
   "eslintIgnore": [
