@@ -94,7 +94,8 @@ async function authenticateGazTarifReglemente(login, password) {
   try {
     await request({
       uri:
-        'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
+//        'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
+        'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
       method: 'POST',
       headers: {
         'content-type': 'application/json'
@@ -340,7 +341,13 @@ async function fetchBills(fields, _, status) {
         fileurl: pdfUrl,
         filename: filename,
         shouldReplaceName: oldFilename,
-        vendorRef: bill.numeroFacture
+        vendorRef: bill.numeroFacture,
+        requestOptions: {
+          headers: {
+            Accept: '*/*'
+          }
+        }
+
       })
     })
 
