@@ -15,7 +15,10 @@ const request = requestFactory({
   cheerio: true,
   json: false,
   jar: true,
-  resolveWithFullResponse: true
+  resolveWithFullResponse: true,
+  headers: {
+    Accept: '*/*'
+  }
 })
 module.exports = new BaseKonnector(start)
 
@@ -205,7 +208,7 @@ function getCustomerAccountData(_, status) {
       _: _
     },
     headers: {
-      'content-type': 'application/json'
+      Accept: '*/*'
     }
   }).then($ => {
     let json = JSON.parse($.body.text())
@@ -342,7 +345,8 @@ async function fetchBills(fields, _, status) {
     })
 
     await saveBills(bills, fields, {
-      identifiers: ['engie']
+      identifiers: ['engie'],
+      requestInstance: request
     })
   })
 }
