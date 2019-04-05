@@ -11,7 +11,7 @@ const {
 } = require('cozy-konnector-libs')
 
 const request = requestFactory({
-  // debug: true,
+  debug: true,
   cheerio: true,
   json: false,
   jar: true,
@@ -20,14 +20,15 @@ const request = requestFactory({
 module.exports = new BaseKonnector(start)
 
 async function start(fields) {
-  let _ = Math.floor(new Date().getTime() / 1000)
+  //  let _ = Math.floor(new Date().getTime() / 1000)
+  let _ = Math.floor(new Date().getTime())
 
-  await getLoginCookie()
+  await getLoginCookie(_)
   const status = await authenticate(fields.login, fields.password)
 
   if (status === 'engie') {
-    await getAuthenticationToken(fields.login, fields.password)
-    await createAuthenticationCookie(_, status)
+    //    await getAuthenticationToken(fields.login, fields.password)
+    //    await createAuthenticationCookie(_, status)
     let refBP = await getCustomerAccountData(_, status)
     await getBPCCCookie(refBP, status)
     await getBillCookies(_, status)
@@ -42,11 +43,20 @@ async function start(fields) {
   }
 }
 
-function getLoginCookie() {
+async function getLoginCookie(_) {
   log('info', 'Get the login cookie to allowed further xhr calls...')
-
-  return request({
+  console.log(_, '_ IS')
+  await request({
     uri: 'https://particuliers.engie.fr/login-page.html'
+  })
+
+  await request({
+    uri:
+      'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie',
+    qs: {
+      param: _ + 3,
+      _: _
+    }
   })
 }
 
@@ -54,7 +64,7 @@ async function authenticate(login, password) {
   log('info', 'Authenticate to the main API...')
   try {
     await request({
-      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
+      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
       method: 'POST',
       headers: {
         'content-type': 'application/json'
@@ -185,7 +195,7 @@ function createAuthenticationCookie(_, status) {
   })
 }
 
-function getCustomerAccountData(_, status) {
+async function getCustomerAccountData(_, status) {
   log('info', 'Get customer account data...')
   let uri
   if (status === 'engie') {
@@ -198,14 +208,15 @@ function getCustomerAccountData(_, status) {
     throw new Error('Should never happen, error during login')
   }
 
-  return request({
+  return await request({
     uri,
     method: 'GET',
-    qs: {
-      _: _
-    },
+    // qs: {
+    //   _: _
+    // },
     headers: {
       'content-type': 'application/json'
+      //        'content-type': 'application/json; charset=UTF-8'
     }
   }).then($ => {
     let json = JSON.parse($.body.text())
