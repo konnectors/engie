@@ -23,25 +23,24 @@ const request = requestFactory({
 module.exports = new BaseKonnector(start)
 
 async function start(fields) {
-  let _ = Math.floor(new Date().getTime() / 1000)
+  let _ = Math.floor(new Date().getTime())
 
   await getLoginCookie()
   const status = await authenticate(fields.login, fields.password)
 
   if (status === 'engie') {
-    await getAuthenticationToken(fields.login, fields.password)
     await createAuthenticationCookie(_, status)
-    let refBP = await getCustomerAccountData(_, status)
+    let refBP = await getCustomerAccountData(status)
     await getBPCCCookie(refBP, status)
-    await getBillCookies(_, status)
-    await fetchBills(fields, _, status)
+    await getBillCookies(status)
+    await fetchBills(fields, status)
   } else if (status === 'gazTarifReglemente') {
     await createAuthenticationCookie(_, status)
     await authenticateGazTarifReglemente(fields.login, fields.password)
-    let refBP = await getCustomerAccountData(_, status)
+    let refBP = await getCustomerAccountData(status)
     await getBPCCCookie(refBP, status)
-    await getBillCookies(_, status)
-    await fetchBills(fields, _, status)
+    await getBillCookies(status)
+    await fetchBills(fields, status)
   }
 }
 
@@ -57,7 +56,7 @@ async function authenticate(login, password) {
   log('info', 'Authenticate to the main API...')
   try {
     await request({
-      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion',
+      uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
       method: 'POST',
       headers: {
         'content-type': 'application/json'
@@ -94,7 +93,6 @@ async function authenticateGazTarifReglemente(login, password) {
   try {
     await request({
       uri:
-//        'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion?sgut1Counter',
         'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
       method: 'POST',
       headers: {
@@ -123,49 +121,6 @@ async function authenticateGazTarifReglemente(login, password) {
   return 'gazTarifReglemente'
 }
 
-async function getAuthenticationToken(login, password) {
-  log('info', 'Get the authentication token...')
-  let retry = 10
-
-  while (retry > 0) {
-    try {
-      const result = await request({
-        uri:
-          'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          composante: 'CEL',
-          compteActif: 'true',
-          login: login,
-          motDePasse: password
-        })
-      })
-      return result
-    } catch (err) {
-      if (
-        err.statusCode === 401 &&
-        retry > 1 &&
-        err.error ===
-          '{"code":null,"message":"The resource owner could not be authenticated due to missing or invalid credentials"}'
-      ) {
-        retry--
-        log(
-          'warn',
-          `We got a 401 on getAuthenticationToken, retrying ${retry} times`
-        )
-        let sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-        await sleep(5000)
-      } else {
-        log('error', err.message)
-        throw new Error(errors.VENDOR_DOWN)
-      }
-    }
-  }
-}
-
 function createAuthenticationCookie(_, status) {
   log('info', 'Create the authentication cookie...')
   let uri
@@ -189,7 +144,7 @@ function createAuthenticationCookie(_, status) {
   })
 }
 
-function getCustomerAccountData(_, status) {
+async function getCustomerAccountData(status) {
   log('info', 'Get customer account data...')
   let uri
   if (status === 'engie') {
@@ -202,15 +157,9 @@ function getCustomerAccountData(_, status) {
     throw new Error('Should never happen, error during login')
   }
 
-  return request({
+  return await request({
     uri,
-    method: 'GET',
-    qs: {
-      _: _
-    },
-    headers: {
-      Accept: '*/*'
-    }
+    method: 'GET'
   }).then($ => {
     let json = JSON.parse($.body.text())
     return json.refBP
@@ -241,7 +190,7 @@ function getBPCCCookie(refBP, status) {
   })
 }
 
-function getBillCookies(_, status) {
+function getBillCookies(status) {
   log('info', 'Get cookies to be allowed to get bills...')
   let uri
   if (status === 'engie') {
@@ -255,7 +204,6 @@ function getBillCookies(_, status) {
   return request({
     uri,
     qs: {
-      _: _,
       prechargerFacture: true,
       prechargerPaiement: true,
       performSuiviEM: false,
@@ -265,7 +213,7 @@ function getBillCookies(_, status) {
   })
 }
 
-async function fetchBills(fields, _, status) {
+async function fetchBills(fields, status) {
   log('info', 'Fetch bills...')
   let uri1, uri2
   if (status === 'engie') {
@@ -283,8 +231,7 @@ async function fetchBills(fields, _, status) {
     uri: uri1,
     qs: {
       dateDebutIntervalle: new Date('2000-01-01').toISOString(),
-      dateFinIntervalle: new Date().toISOString(),
-      _: _
+      dateFinIntervalle: new Date().toISOString()
     },
     headers: {
       'content-type': 'application/json'
@@ -347,13 +294,12 @@ async function fetchBills(fields, _, status) {
             Accept: '*/*'
           }
         }
-
       })
     })
 
     await saveBills(bills, fields, {
       identifiers: ['engie'],
-      requestInstance: request
+      requestInstance: request // Seems to not work, use requestOptions too
     })
   })
 }
