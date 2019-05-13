@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.5.0",
   "name": "Engie",
   "type": "konnector",
   "language": "node",
@@ -56,8 +56,8 @@
   ],
   "locales": {
     "fr": {
-      "short_description": "Récupère vos factures sur votre espace particuliers",
-      "long_description": "Récupère vos factures sur votre espace particuliers",
+      "short_description": "Récupère vos factures",
+      "long_description": "Récupère vos factures sur votre espace client pour les particuliers",
       "permissions": {
         "bank operations": {
           "description": "Utilisé pour relier les factures à des operations bancaires"
@@ -74,8 +74,8 @@
       }
     },
     "en": {
-      "short_description": "Fetch your bills on your personnal account",
-      "long_description": "Fetch your bills on your personnal account",
+      "short_description": "Fetch your bills",
+      "long_description": "Fetch your bills on your customer account",
       "permissions": {
         "bank operations": {
           "description": "Required to link bank operations to bills"
