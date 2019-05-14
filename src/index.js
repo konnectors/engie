@@ -23,19 +23,19 @@ const request = requestFactory({
 module.exports = new BaseKonnector(start)
 
 async function start(fields) {
-  let _ = Math.floor(new Date().getTime())
-
-  await getLoginCookie()
-  const status = await authenticate(fields.login, fields.password)
+  await engieFetchLoginPage()
+  await createAuthenticationCookie('engie')
+  const status = await engieAuthenticate(fields.login, fields.password)
 
   if (status === 'engie') {
-    await createAuthenticationCookie(_, status)
+    // Continue process
     let refBP = await getCustomerAccountData(status)
     await getBPCCCookie(refBP, status)
     await getBillCookies(status)
     await fetchBills(fields, status)
   } else if (status === 'gazTarifReglemente') {
-    await createAuthenticationCookie(_, status)
+    // Try the GTR website
+    await createAuthenticationCookie(status)
     await authenticateGazTarifReglemente(fields.login, fields.password)
     let refBP = await getCustomerAccountData(status)
     await getBPCCCookie(refBP, status)
@@ -44,16 +44,15 @@ async function start(fields) {
   }
 }
 
-function getLoginCookie() {
-  log('info', 'Get the login cookie to allowed further xhr calls...')
-
+function engieFetchLoginPage() {
+  log('info', 'Get initial cookies')
   return request({
     uri: 'https://particuliers.engie.fr/login-page.html'
   })
 }
 
-async function authenticate(login, password) {
-  log('info', 'Authenticate to the main API...')
+async function engieAuthenticate(login, password) {
+  log('info', 'Authenticate to engie website...')
   try {
     await request({
       uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
@@ -61,11 +60,18 @@ async function authenticate(login, password) {
       headers: {
         'content-type': 'application/json'
       },
+      qs: {
+        ooof: true
+      },
       body: JSON.stringify({
         composante: 'CEL',
         compteActif: 'true',
         login: login,
-        motDePasse: password
+        motDePasse: password,
+        // Warning : this hard-coded token seems necessary
+        // It appears recently, and seems to work for now like that for all acount
+        // Login evolve a lot recently, could be subject to more change here
+        secureToken: 'bDZFmRZHTF8KkBWr2jMyr5MCMzNAJmZTm2TNTuWmaQXHRN4E8N'
       })
     })
   } catch (err) {
@@ -121,13 +127,14 @@ async function authenticateGazTarifReglemente(login, password) {
   return 'gazTarifReglemente'
 }
 
-function createAuthenticationCookie(_, status) {
+function createAuthenticationCookie(type) {
   log('info', 'Create the authentication cookie...')
   let uri
-  if (status === 'engie') {
+  const _ = Math.floor(new Date().getTime())
+  if (type === 'engie') {
     uri =
       'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie'
-  } else if (status === 'gazTarifReglemente') {
+  } else if (type === 'gazTarifReglemente') {
     uri =
       'https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie'
   } else {
@@ -137,7 +144,7 @@ function createAuthenticationCookie(_, status) {
   return request({
     uri,
     qs: {
-      param: _,
+      param: _ + 3,
       _: _
     },
     method: 'GET'
@@ -147,18 +154,23 @@ function createAuthenticationCookie(_, status) {
 async function getCustomerAccountData(status) {
   log('info', 'Get customer account data...')
   let uri
+  let headers
   if (status === 'engie') {
     uri =
-      'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient'
+      'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient/v2'
   } else if (status === 'gazTarifReglemente') {
     uri =
       'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
+    // This weird header is present in request and mandatory.
+    // If not we get a 'KO_TECHNIQUE' error
+    headers = { estexo: true }
   } else {
     throw new Error('Should never happen, error during login')
   }
 
   return await request({
     uri,
+    headers,
     method: 'GET'
   }).then($ => {
     let json = JSON.parse($.body.text())
