@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.6.3",
   "name": "Engie",
   "type": "konnector",
   "language": "node",
@@ -40,10 +40,7 @@
       "type": "io.cozy.files"
     },
     "accounts": {
-      "type": "io.cozy.accounts",
-      "verbs": [
-        "GET"
-      ]
+      "type": "io.cozy.accounts"
     }
   },
   "developer": {
