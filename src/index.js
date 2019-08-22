@@ -40,9 +40,10 @@ class EngieConnector extends CookieKonnector {
         log('info', JSON.stringify(response))
         return true
       } else if (status === 'gazTarifReglemente') {
-        await this.request(
-          `https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie?param=${Date.now()}`
-        )
+        delete this._jar._jar.store.idx['gaz-tarif-reglemente.fr']['/'][
+          'ClientIDCookie'
+        ]
+        await this.createAuthenticationCookie(status)
         await this.request({
           uri:
             'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
@@ -100,18 +101,11 @@ class EngieConnector extends CookieKonnector {
 
     const { status } = this.getAccountData()
     log('info', `status: ${status}`)
-    if (status === 'engie') {
-      // Continue process
-      let refBP = await this.getCustomerAccountData(status)
-      await this.getBPCCCookie(refBP, status)
-      await this.getBillCookies(status)
-      await this.fetchBills(fields, status)
-    } else if (status === 'gazTarifReglemente') {
-      let refBP = await this.getCustomerAccountData(status)
-      await this.getBPCCCookie(refBP, status)
-      await this.getBillCookies(status)
-      await this.fetchBills(fields, status)
-    }
+    let refBP = await this.getCustomerAccountData(status)
+    await this.getBPCCCookie(refBP, status)
+    await this.getBillCookies(status)
+    await this.fetchBills(fields, status)
+    await this.fetchBills(fields, status)
   }
 
   async engieFetchLoginPage() {
@@ -271,9 +265,6 @@ class EngieConnector extends CookieKonnector {
     } else if (status === 'gazTarifReglemente') {
       uri =
         'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
-      // This weird header is present in request and mandatory.
-      // If not we get a 'KO_TECHNIQUE' error
-      headers = { estexo: true }
     } else {
       throw new Error('Should never happen, error during login')
     }
@@ -441,5 +432,4 @@ const connector = new EngieConnector({
   }
 })
 
-console.log('run connector')
 connector.run()
