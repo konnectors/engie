@@ -72,6 +72,7 @@ class EngieConnector extends CookieKonnector {
     } catch (err) {
       log('warn', err.message)
       log('warn', 'Session failed')
+      await this.resetSession()
       return false
     }
   }
@@ -104,7 +105,6 @@ class EngieConnector extends CookieKonnector {
     let refBP = await this.getCustomerAccountData(status)
     await this.getBPCCCookie(refBP, status)
     await this.getBillCookies(status)
-    await this.fetchBills(fields, status)
     await this.fetchBills(fields, status)
   }
 
@@ -343,81 +343,88 @@ class EngieConnector extends CookieKonnector {
       throw new Error('Should never happen, error during login')
     }
 
-    return await this.request({
-      uri: uri1,
-      qs: {
-        dateDebutIntervalle: new Date('2000-01-01').toISOString(),
-        dateFinIntervalle: new Date().toISOString()
-      },
-      headers: {
-        'content-type': 'application/json'
-      }
-    }).then(async $ => {
-      let data = JSON.parse($.body.text())
-      let bills = []
+    let $
+    try {
+      $ = await this.request({
+        uri: uri1,
+        qs: {
+          dateDebutIntervalle: new Date('2000-01-01').toISOString(),
+          dateFinIntervalle: new Date().toISOString()
+        },
+        headers: {
+          'content-type': 'application/json'
+        }
+      })
+    } catch (err) {
+      log('error', 'erro while fetching bills')
+      log('error', err.message)
+      throw new Error(errors.VENDOR_DOWN)
+    }
 
-      data.listeFactures.map(bill => {
-        const date = new Date(bill.dateFacture)
-        const pdfUrl =
-          uri2 +
-          encodeURIComponent(bill.url) +
-          '/SAE/' +
-          ('0' + (date.getDate() + 1)).slice(-2) +
-          ('0' + (date.getMonth() + 1)).slice(-2) +
-          date.getFullYear() +
-          encodeURIComponent('N°') +
-          bill.numeroFacture +
-          '.pdf'
-        const isRefund = Boolean(bill.montantTTC.montant < 0)
-        let amount = bill.montantTTC.montant
-        if (isRefund) amount = Math.abs(amount)
-        const oldFilename =
-          date.getFullYear() +
-          ('0' + (date.getMonth() + 1)).slice(-2) +
-          ('0' + (date.getDay() + 1)).slice(-2) +
-          '_ENGIE_' +
-          bill.libelle +
-          '-' +
-          bill.dateFacture +
-          '.pdf'
-        const filename =
-          date.getFullYear() +
-          '-' +
-          ('0' + (date.getMonth() + 1)).slice(-2) +
-          '-' +
-          ('0' + (date.getDate() + 1)).slice(-2) +
-          '_ENGIE_' +
-          amount.toFixed(2) +
-          '€_' +
-          bill.libelle.replace(/ /g, '-') +
-          '_' +
-          bill.numeroFacture +
-          '.pdf'
+    let data = JSON.parse($.body.text())
+    let bills = []
 
-        bills.push({
-          subtype: bill.libelle,
-          vendor: 'Engie',
-          date: date,
-          amount,
-          isRefund,
-          currency: 'EUR',
-          fileurl: pdfUrl,
-          filename: filename,
-          shouldReplaceName: oldFilename,
-          vendorRef: bill.numeroFacture,
-          requestOptions: {
-            headers: {
-              Accept: '*/*'
-            }
+    data.listeFactures.map(bill => {
+      const date = new Date(bill.dateFacture)
+      const pdfUrl =
+        uri2 +
+        encodeURIComponent(bill.url) +
+        '/SAE/' +
+        ('0' + (date.getDate() + 1)).slice(-2) +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        date.getFullYear() +
+        encodeURIComponent('N°') +
+        bill.numeroFacture +
+        '.pdf'
+      const isRefund = Boolean(bill.montantTTC.montant < 0)
+      let amount = bill.montantTTC.montant
+      if (isRefund) amount = Math.abs(amount)
+      const oldFilename =
+        date.getFullYear() +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        ('0' + (date.getDay() + 1)).slice(-2) +
+        '_ENGIE_' +
+        bill.libelle +
+        '-' +
+        bill.dateFacture +
+        '.pdf'
+      const filename =
+        date.getFullYear() +
+        '-' +
+        ('0' + (date.getMonth() + 1)).slice(-2) +
+        '-' +
+        ('0' + (date.getDate() + 1)).slice(-2) +
+        '_ENGIE_' +
+        amount.toFixed(2) +
+        '€_' +
+        bill.libelle.replace(/ /g, '-') +
+        '_' +
+        bill.numeroFacture +
+        '.pdf'
+
+      bills.push({
+        subtype: bill.libelle,
+        vendor: 'Engie',
+        date: date,
+        amount,
+        isRefund,
+        currency: 'EUR',
+        fileurl: pdfUrl,
+        filename: filename,
+        shouldReplaceName: oldFilename,
+        vendorRef: bill.numeroFacture,
+        requestOptions: {
+          headers: {
+            Accept: '*/*'
           }
-        })
+        }
       })
+    })
 
-      await this.saveBills(bills, fields, {
-        identifiers: ['engie'],
-        sourceAccount: this.accountId,
-        sourceAccountIdentifier: fields.login
-      })
+    await this.saveBills(bills, fields, {
+      identifiers: ['engie'],
+      sourceAccount: this.accountId,
+      sourceAccountIdentifier: fields.login
     })
   }
 }
