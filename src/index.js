@@ -356,7 +356,18 @@ class EngieConnector extends CookieKonnector {
         }
       })
     } catch (err) {
-      log('error', 'erro while fetching bills')
+      if (
+        err.statusCode === 400 &&
+        err.error === '{"code":"MISSING_NUMCC","message":null}'
+      ) {
+        log(
+          'warn',
+          "No client account number, account has been suspended as it's " +
+            'probably too old. Bills not accessible anymore.'
+        )
+        throw new Error(errors.USER_ACTION_NEEDED_ACCOUNT_REMOVED)
+      }
+      log('error', 'error while fetching bills')
       log('error', err.message)
       throw new Error(errors.VENDOR_DOWN)
     }
