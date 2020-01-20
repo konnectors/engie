@@ -17,14 +17,9 @@
     },
     "password": {
       "type": "password"
-    },
-    "advancedFields": {
-      "folderPath": {
-        "advanced": true,
-        "isRequired": false
-      }
     }
   },
+  "folders": [{"defaultDir": "$administrative/$konnector/$account"}],
   "data_types": [
     "bill"
   ],

@@ -132,7 +132,7 @@ class EngieConnector extends CookieKonnector {
       websiteKey,
       websiteURL,
       pageAction,
-      minScore: 0.7
+      minScore: 0.9
     })
 
     log('info', 'Authenticate to engie website...')
@@ -435,7 +435,8 @@ class EngieConnector extends CookieKonnector {
     await this.saveBills(bills, fields, {
       identifiers: ['engie'],
       sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login
+      sourceAccountIdentifier: fields.login,
+      fileIdAttributes: ['vendorRef']
     })
   }
 }
