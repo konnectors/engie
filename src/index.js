@@ -433,10 +433,10 @@ class EngieConnector extends CookieKonnector {
     })
 
     await this.saveBills(bills, fields, {
-      identifiers: ['engie'],
       sourceAccount: this.accountId,
       sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendorRef']
+      fileIdAttributes: ['vendorRef'],
+      linkBankOperations: false
     })
   }
 }
