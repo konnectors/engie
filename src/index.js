@@ -212,7 +212,8 @@ class EngieConnector extends CookieKonnector {
           compteActif: true,
           login: login,
           motDePasse: password,
-          captchaToken
+          captchaToken,
+          versionC: 'V3'
         })
       })
     } catch (err) {
