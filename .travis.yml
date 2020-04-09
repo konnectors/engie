@@ -3,7 +3,7 @@ node_js:
 - '12'
 env:
   global:
-  - DEPLOY_REPOSITORY="git@github.com:konnectors/engie.git"
+  - MATTERMOST_CHANNEL=publication
   # REGISTRY_TOKEN(editor=cozy, app=engie)
   - secure: Lc+Q+hDerGZUEpyj4eSCcc8m/Y7MbNv/n+pWomhY4aB2N6yjxilVpUHqIIzBTWhdWTIQAw0c4yXUdb4w49jqIAUSFoPnxf3GKVBSviVrH9CCWHcGsHGenFtxw2o1nqbFGz/Sr+s6lMGniq6UzpPPYwX1qC3jMZx85TLWlS4XdngzyQjkuBpuVEbQYSUMl3XxFsHQzYU2ACQNm6Dhaz7mMIy/ljSoDb2INcGk1KZw81L9SlfaGFUYwKvec8G5AerbTj7qLm+FWK9oY8ilXDjk9EHNs5kNYTlxtDP1em+cCF2y7uavXPV7cVQXESbixTWD77wjbvw/fIUcek3ITeU5vKyuBfcjc8E6fZ6UsRMUhnx41PGvDjH1U+3hGiRHjSSA5RGToOTd5YnlcfdVgtDTWdzc4rCwpFAnO0h4cvp0cpmTJhLiePrqxZTL+NazPRTFpFYFk6dFsnJmBSgOGxdC2Wbie0NRHqSP8MR6gkEb9jpeIZNBxV3WYo/VPlLRM+rkhwds22nsE4OWIuGKtyMshPoauGNaiBdk/APCjmCdL4Hh4rU2BBb/6SewCFwf4NdTCBgCwiH2kz6PtrNNpcMNdZOWlBrSZaX/FyW5N07tE7vqRAwSJ1DWsfv0+rPutevm6rMBwenjYWwSFHmETMGJLMFjRasUKofaj6RvYG39SyA=
   # MATTERMOST_HOOK_URL
