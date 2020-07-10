@@ -83,6 +83,7 @@ class EngieConnector extends CookieKonnector {
       log('info', 'Found no correct session, logging in...')
       // If status is engie, we try, but as engie auth do not work, it shouldn't happen
       if (status && status === 'engie') {
+        log('debug', 'Doing engie login')
         const $ = (await this.engieFetchLoginPage()).body
         await this.createAuthenticationCookie('engie')
 
@@ -90,6 +91,7 @@ class EngieConnector extends CookieKonnector {
       } else {
         // if (status === 'gazTarifReglemente') {
         // Try the GTR website, as engie do not work, we test in a 'else', every case possible
+        log('debug', 'Doing GTR login')
         status = 'gazTarifReglemente'
         await this.createAuthenticationCookie(status)
         await this.authenticateGazTarifReglemente(fields.login, fields.password)
@@ -99,7 +101,7 @@ class EngieConnector extends CookieKonnector {
       this.saveSession()
       log('info', 'Successfully logged in')
     }
-
+    status = 'gazTarifReglemente'
     log('info', `status: ${status}`)
     let refBP = await this.getCustomerAccountData(status)
     await this.getBPCCCookie(refBP, status)
