@@ -78,19 +78,19 @@ class EngieConnector extends CookieKonnector {
   }
 
   async fetch(fields) {
+    let status
     if (!(await this.testSession())) {
       log('info', 'Found no correct session, logging in...')
-      const $ = (await this.engieFetchLoginPage()).body
-      await this.createAuthenticationCookie('engie')
+      // If status is engie, we try, but as engie auth do not work, it shouldn't happen
+      if (status && status === 'engie') {
+        const $ = (await this.engieFetchLoginPage()).body
+        await this.createAuthenticationCookie('engie')
 
-      const status = await this.engieAuthenticate(
-        fields.login,
-        fields.password,
-        $
-      )
-
-      // Try the GTR website
-      if (status === 'gazTarifReglemente') {
+        status = await this.engieAuthenticate(fields.login, fields.password, $)
+      } else {
+        // if (status === 'gazTarifReglemente') {
+        // Try the GTR website, as engie do not work, we test in a 'else', every case possible
+        status = 'gazTarifReglemente'
         await this.createAuthenticationCookie(status)
         await this.authenticateGazTarifReglemente(fields.login, fields.password)
       }
@@ -100,7 +100,6 @@ class EngieConnector extends CookieKonnector {
       log('info', 'Successfully logged in')
     }
 
-    const { status } = this.getAccountData()
     log('info', `status: ${status}`)
     let refBP = await this.getCustomerAccountData(status)
     await this.getBPCCCookie(refBP, status)
@@ -197,7 +196,7 @@ class EngieConnector extends CookieKonnector {
         websiteKey,
         websiteURL,
         pageAction,
-        minScore: 0.3
+        minScore: 0.9
       })
 
       await this.request({
@@ -443,7 +442,7 @@ class EngieConnector extends CookieKonnector {
 }
 
 const connector = new EngieConnector({
-  // debug: 'simple',
+  //debug: 'simple',
   cheerio: true,
   json: false,
   resolveWithFullResponse: true,
