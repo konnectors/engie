@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "name": "Engie",
+  "version": "1.9.1",
+  "name": "Gaz Tarif Réglementé par Engie",
   "type": "konnector",
   "language": "node",
   "icon": "icon.svg",
@@ -52,8 +52,8 @@
   ],
   "locales": {
     "fr": {
-      "short_description": "Récupère vos factures",
-      "long_description": "Récupère vos factures sur votre espace client pour les particuliers",
+      "short_description": "Récupérez vos documents de votre contrat 'Gaz tarif reglementé'",
+      "long_description": "Ce service est compatible uniquement pour les offres du nouveau site www.gaz-tarif-reglemente.fr, commercialisées par le groupe ENGIE.\nENGIE a récemment séparé ses offres et créé des sites internet et espaces clients distincts.\n\n**Connectez votre compte GTR à votre Cozy pour :**\n- récupérez vos factures\n- historiser vos documents contractuels\n\n**Accédez directement à vos documents dans votre Drive personnel**\nEn connectant votre compte, votre Cozy crée automatiquement un dossier dans Drive > Administratif > 'Gaz Tarif Reglementé' par Engie.\nVos documents sont à portée de main et toujours accessibles !\n\n**Suivez le montant de vos prestations avec Banks**\nLes factures récupérées sont automatiquement liées aux opérations bancaires associées à votre compte si vous utilisez l’application Banks.\n\n**Configuration**\nPour connecter votre compte, il vous suffit de renseigner dans les champs :\n- votre email\n- votre mot de passe créé pour accéder a site www.gaz-tarif-reglemente.fr\n\nOriginellement votre compte a peut être été compatible avec le site https://particuliers.engie.fr, vérifiez votre offre et vos accès avant de connectez votre compte à votre cozy.\n\nUne fois connecté, votre Cozy se connectera régulièrement à votre compte pour récupérer les nouveaux éléments et les historiser.\nSi vous déconnectez votre compte, les informations déjà sauvegardées dans votre Cozy restent disponibles. Vous pouvez les supprimer manuellement par ailleurs.",
       "permissions": {
         "bank operations": {
           "description": "Utilisé pour relier les factures à des operations bancaires"
@@ -70,8 +70,8 @@
       }
     },
     "en": {
-      "short_description": "Fetch your bills",
-      "long_description": "Fetch your bills on your customer account",
+      "short_description": "Fetch your documents from your 'Gaz tarif reglementé' contract",
+      "long_description": "This service is only available for contracts linked to the new www.gaz-tarif-reglemente.fr, website, offered by ENGIE group.\nENGIE has dedicated a new brand and website separated from their core brand.\n\n**Connect your account to your Cozy for :**\n- getting your bills\n- saving your contract documents\n\n**Access directly to your documents in your personal Drive**\nBy connecting your CAF account, your Cozy automatically creates a folder in Drive > Administrative > Gaz Tarif Réglementé by Engie.\n\n**Follow your bills debit with Banks**\nThe recovered bills are automatically linked to the Engie transactions if you use the Banks application.\n\n**Configuration**\nTo connect your account, you just have to fill in the fields :\n- your email\n- your password created to access the www.gaz-tarif-reglemente.fr website.\n\nYour access may have been created on https://particuliers.engie.fr website. Please check your access on the different websites before.\n\nOnce logged in, your Cozy will automatically connect to your account to retrieve new documents and store them in your folder in Drive.\nIf you disconnect your account, the information already saved in your Cozy remains available. You can delete them manually.",
       "permissions": {
         "bank operations": {
           "description": "Required to link bank operations to bills"
