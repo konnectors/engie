@@ -7,7 +7,7 @@
   "slug": "engie",
   "source": "git@github.com:konnectors/engie.git",
   "editor": "johnkrovitch",
-  "vendor_link": "https://particuliers.engie.fr/login-page.html",
+  "vendor_link": "https://gaz-tarif-reglemente.fr/login-page.html",
   "categories": [
     "energy"
   ],
