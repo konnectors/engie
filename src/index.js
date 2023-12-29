@@ -1,7 +1,3 @@
-process.env.SENTRY_DSN =
-  process.env.SENTRY_DSN ||
-  'https://70d4d3ab5ca3447e893129ed31a2bfbc@sentry.cozycloud.cc/99'
-
 const {
   CookieKonnector,
   log,
@@ -45,8 +41,7 @@ class EngieConnector extends CookieKonnector {
         ]
         await this.createAuthenticationCookie(status)
         await this.request({
-          uri:
-            'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
+          uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
           method: 'POST',
           headers: {
             'content-type': 'application/json'
@@ -90,7 +85,7 @@ class EngieConnector extends CookieKonnector {
         status = await this.engieAuthenticate(fields.login, fields.password, $)
       } else {
         // if (status === 'gazTarifReglemente') {
-        // Try the GTR website, as engie do not work, we test in a 'else', every case possible
+        // Try the GTR website
         log('debug', 'Doing GTR login')
         status = 'gazTarifReglemente'
         await this.createAuthenticationCookie(status)
@@ -139,8 +134,7 @@ class EngieConnector extends CookieKonnector {
     log('info', 'Authenticate to engie website...')
     try {
       await this.request({
-        uri:
-          'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
+        uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
         method: 'POST',
         headers: {
           'content-type': 'application/json'
@@ -182,7 +176,7 @@ class EngieConnector extends CookieKonnector {
     const response = await this.request(websiteURL)
     log('info', 'Authenticate to the main API on gaz-tarif-reglemente.fr ...')
     try {
-      const websiteKey = response
+      /*      const websiteKey = response
         .body("#siteContent script[src*='api.js?onload=onloadCallback&render']")
         .attr('src')
         .split('=')
@@ -191,8 +185,12 @@ class EngieConnector extends CookieKonnector {
         log('error', 'Could not find the websitekey to solve the captcha')
         throw new Error('VENDOR_DOWN')
       }
+*/
       const pageAction = 'loginTR'
 
+      //      const websiteKey = "6Lc3iB0UAAAAAIKUlKhz9cd2sPPevX5mOaAbS0ai"
+      const websiteKey = '6LcJGmcbAAAAANd_4Pp5k20WBfimPvw69GCeXRD-'
+      //      const websiteKey = "6LcJGmcbAAAAANd_4Pp5k20WBfimPvw69GCeXRD\u002D"
       const captchaToken = await solveCaptcha({
         type: 'recaptchav3',
         websiteKey,
@@ -202,8 +200,7 @@ class EngieConnector extends CookieKonnector {
       })
 
       await this.request({
-        uri:
-          'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
+        uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
         method: 'POST',
         headers: {
           'content-type': 'application/json'
@@ -444,7 +441,7 @@ class EngieConnector extends CookieKonnector {
 }
 
 const connector = new EngieConnector({
-  //debug: 'simple',
+  // debug: 'simple',
   cheerio: true,
   json: false,
   resolveWithFullResponse: true,
