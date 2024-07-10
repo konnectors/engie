@@ -4,8 +4,183 @@ const {
   errors,
   solveCaptcha
 } = require('cozy-konnector-libs')
+const { method } = require('lodash')
 
 class EngieConnector extends CookieKonnector {
+  async fetch(fields) {
+    await this.deactivateAutoSuccessfulLogin()
+    // Backup cookies from account
+    await this.initSession()
+    log('debug', 'Fetching form')
+    const loginPage = await this.request(
+      'https://particuliers.engie.fr/login-page/authentification.html'
+    )
+    const requestJSON = this.requestFactory({
+      cheerio: false,
+      json: true,
+      debug: true
+    })
+    await requestJSON({
+      uri: 'https://particuliers.engie.fr/digital-common-ws/api-management/creation-cookie',
+      method: 'POST'
+    })
+    log('debug', 'Sending login POST')
+    const loginReq = await requestJSON({
+      method: 'POST',
+      uri: 'https://identite-prd.engie.fr/api/v1/authn',
+      body: {
+        username: fields.login,
+        password: fields.password,
+        options: { multiOptionalFactorEnroll: true }
+      }
+    })
+
+    console.log(loginReq)
+    console.log(loginReq._embedded)
+    console.log(loginReq._links)
+    // console.log(loginReq._embedded.factors[0])
+    let sessionToken
+    if (loginReq.status === 'SUCCESS') {
+      log('info', 'Login to identite server ok without 2FA, login to api')
+      sessionToken = loginReq.sessionToken
+    } else if (loginReq.status === 'MFA_REQUIRED') {
+      log('info', '2FA auth needed')
+      if (loginReq?._embedded?.factors.length > 0) {
+        if (loginReq?._embedded?.factors[0]?.factorType === 'email') {
+          const stateToken = loginReq.stateToken
+          const challengeLink = loginReq._embedded.factors[0]._links.verify.href
+          // Getting the email send
+          await requestJSON({
+            method: 'POST',
+            uri: challengeLink,
+            body: { stateToken }
+          })
+          const code = await this.waitForTwoFaCode({
+            type: 'email'
+          })
+          log('debug', 'Sending 2FA code to Engie')
+          const challengeCompletReq = await requestJSON({
+            method: 'POST',
+            uri: challengeLink,
+            body: {
+              passCode: code,
+              stateToken
+            }
+          })
+          if (challengeCompletReq.status === 'SUCCESS') {
+            log('info', 'Login to identite server ok, login to api')
+            sessionToken = challengeCompletReq.sessionToken
+          } else {
+            log('error', 'Login not successful after sending 2FA code')
+            throw new Error('VENDOR_DOWN')
+          }
+        } else {
+          log('error', 'Not an email 2FA')
+          throw new Error('VENDOR_DOWN')
+        }
+      } else {
+        log('error', 'No 2FA factor found. Not normal')
+        throw new Error('VENDOR_DOWN')
+      }
+    }
+
+    // 2nd login step Oauth with api.dgp.engie.fr
+    // Using session token
+
+    // Generating random start of state using charset as seen in website
+    const possible = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let state = ''
+    for (let i = 0; i < 10; i++)
+      state += possible.charAt(Math.floor(Math.random() * possible.length))
+
+    // Todo decomposer la query
+    const oauthUrl =
+      `https://api.dgp.engie.fr/oauth/v1/authorize?` +
+      `client_id=gAeNcRIOkLBQxK0HeZu8JDIPgVn9Pb8n&redirect_uri=https://particuliers.engie.fr/auth-ws/auth-callback&response_type=code&` +
+      `sessionToken=${sessionToken}&state=${state}%7Cparcours%3DMFA_CHALLENGE%7Ckml%3Dtrue&scope=openid profile idb2c apihour:read apihour:write offline_access`
+    const oauthReq = await this.request(oauthUrl)
+    console.log(oauthReq)
+    console.log(oauthReq.body.text())
+
+    if (oauthReq.body.text().includes('"statut":"OK"')) {
+      log('info', 'Oauth login step succeed')
+    } else {
+      log('error', 'Login not successful after Oauth (2nd step)')
+      throw new Error('VENDOR_DOWN')
+    }
+
+    // Fetching refBP
+    const composantes = await requestJSON(
+      'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/composantes/v4'
+    )
+    console.log(composantes)
+    const refBP =
+      composantes.listeIdentifiantsApplicatif[0].identifiantApplicatif
+    console.log(refBP)
+
+    const refBPRequest = await requestJSON({
+      uri: 'https://particuliers.engie.fr/cel-ws/api/private/compteenligne/bp',
+      qs: { refBP }
+    })
+    console.log(refBPRequest)
+    const contractNumber = refBPRequest.ccEnSession
+
+    const bpccRequest = await requestJSON({
+      uri: 'https://particuliers.engie.fr/cel-ws/api/private/cookie/cookiesBPCC',
+      body: {
+        refBP,
+        idApplicatif: refBP,
+        compteContrat: contractNumber
+      }
+    })
+
+    await requestJSON({
+      uri: 'https://particuliers.engie.fr/digital-common-ws/api-management/creation-cookie',
+      method: 'POST'
+    })
+
+    await this.saveSession()
+    const tel = await requestJSON(
+      'https://particuliers.engie.fr/auth-ws/api/private/mfa/telephone'
+    )
+    const personne = await requestJSON(
+      'https://particuliers.engie.fr/cel-ws/api/private/personne'
+    )
+    await this.saveSession()
+    return
+
+    let status
+    if (!(await this.testSession())) {
+      log('info', 'Found no correct session, logging in...')
+      // If status is engie, we try, but as engie auth do not work, it shouldn't happen
+      if (status && status === 'engie') {
+        log('debug', 'Doing engie login')
+        const $ = (await this.engieFetchLoginPage()).body
+        await this.createAuthenticationCookie('engie')
+
+        status = await this.engieAuthenticate(fields.login, fields.password, $)
+      } else {
+        // if (status === 'gazTarifReglemente') {
+        // Try the GTR website
+        log('debug', 'Doing GTR login')
+        status = 'gazTarifReglemente'
+        await this.createAuthenticationCookie(status)
+        await this.authenticateGazTarifReglemente(fields.login, fields.password)
+      }
+
+      await this.saveAccountData({ status })
+      this.saveSession()
+      log('info', 'Successfully logged in')
+    }
+    status = 'gazTarifReglemente'
+    log('info', `status: ${status}`)
+    let refBP2 = await this.getCustomerAccountData(status)
+    await this.getBPCCCookie(refBP, status)
+    await this.getBillCookies(status)
+    await this.fetchBills(fields, status)
+  }
+
+  async login(fields) {}
   async testSession() {
     try {
       const { status } = this.getAccountData()
@@ -70,38 +245,6 @@ class EngieConnector extends CookieKonnector {
       await this.resetSession()
       return false
     }
-  }
-
-  async fetch(fields) {
-    let status
-    if (!(await this.testSession())) {
-      log('info', 'Found no correct session, logging in...')
-      // If status is engie, we try, but as engie auth do not work, it shouldn't happen
-      if (status && status === 'engie') {
-        log('debug', 'Doing engie login')
-        const $ = (await this.engieFetchLoginPage()).body
-        await this.createAuthenticationCookie('engie')
-
-        status = await this.engieAuthenticate(fields.login, fields.password, $)
-      } else {
-        // if (status === 'gazTarifReglemente') {
-        // Try the GTR website
-        log('debug', 'Doing GTR login')
-        status = 'gazTarifReglemente'
-        await this.createAuthenticationCookie(status)
-        await this.authenticateGazTarifReglemente(fields.login, fields.password)
-      }
-
-      await this.saveAccountData({ status })
-      this.saveSession()
-      log('info', 'Successfully logged in')
-    }
-    status = 'gazTarifReglemente'
-    log('info', `status: ${status}`)
-    let refBP = await this.getCustomerAccountData(status)
-    await this.getBPCCCookie(refBP, status)
-    await this.getBillCookies(status)
-    await this.fetchBills(fields, status)
   }
 
   async engieFetchLoginPage() {
@@ -441,7 +584,7 @@ class EngieConnector extends CookieKonnector {
 }
 
 const connector = new EngieConnector({
-  // debug: 'simple',
+  debug: true,
   cheerio: true,
   json: false,
   resolveWithFullResponse: true,

@@ -1,13 +1,13 @@
 {
   "version": "1.10.0",
-  "name": "Gaz Tarif Réglementé par Engie",
+  "name": "Engie",
   "type": "konnector",
   "language": "node",
   "icon": "icon.svg",
   "slug": "engie",
   "source": "git@github.com:konnectors/engie.git",
-  "editor": "johnkrovitch",
-  "vendor_link": "https://gaz-tarif-reglemente.fr/login-page.html",
+  "editor": "Cozy",
+  "vendor_link": "https://particuliers.engie.fr/login-page/authentification.html",
   "categories": [
     "energy"
   ],
@@ -41,10 +41,6 @@
     "accounts": {
       "type": "io.cozy.accounts"
     }
-  },
-  "developer": {
-    "name": "Arnaud Frézet",
-    "url": "https://github.com/larriereguichet"
   },
   "langs": [
     "fr",
