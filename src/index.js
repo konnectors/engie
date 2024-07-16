@@ -82,15 +82,24 @@ class EngieConnector extends CookieKonnector {
     })
 
     log('debug', 'Sending login POST')
-    const loginReq = await this.requestJSON({
-      method: 'POST',
-      uri: 'https://identite-prd.engie.fr/api/v1/authn',
-      body: {
-        username: fields.login,
-        password: fields.password,
-        options: { multiOptionalFactorEnroll: true }
+    let loginReq
+    try {
+      loginReq = await this.requestJSON({
+        method: 'POST',
+        uri: 'https://identite-prd.engie.fr/api/v1/authn',
+        body: {
+          username: fields.login,
+          password: fields.password,
+          options: { multiOptionalFactorEnroll: true }
+        }
+      })
+    } catch (e) {
+      if (e.message.includes('Authentication failed')) {
+        throw new Error(errors.LOGIN_FAILED)
+      } else {
+        throw e
       }
-    })
+    }
 
     let sessionToken
     if (loginReq.status === 'SUCCESS') {
@@ -144,7 +153,8 @@ class EngieConnector extends CookieKonnector {
       throw new Error(errors.VENDOR_DOWN)
     }
 
-    // 2nd login step Oauth with api.dgp.engie.fr
+    // 2nd step
+    // Oauth with api.dgp.engie.fr
     // Using session token
 
     // Generating random start of state (10 char) using charset as seen in website
@@ -172,6 +182,9 @@ class EngieConnector extends CookieKonnector {
       throw new Error('VENDOR_DOWN')
     }
 
+    // 3rd step
+    // Updating mandatory cookies
+
     // Fetching mandatory refBP and contract number for this user
     const composantes = await this.requestJSON({
       uri: 'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/composantes/v4'
@@ -184,7 +197,7 @@ class EngieConnector extends CookieKonnector {
     })
     const contractNumber = refBPRequest.ccEnSession
 
-    // Updating cookie BPCC and main cookie
+    // Updating cookie BPCC
     await this.requestJSON({
       uri: 'https://particuliers.engie.fr/cel-ws/api/private/cookie/cookiesBPCC',
       method: 'POST',
@@ -194,9 +207,6 @@ class EngieConnector extends CookieKonnector {
         compteContrat: contractNumber
       },
       headers: {
-        // Accept: 'application/json, text/plain, */*',
-        // 'Accept-Encoding': 'gzip, deflate, br, zstd',
-        // 'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
         demandeur: 'AUTH_FRONT'
       }
     })
@@ -212,6 +222,11 @@ class EngieConnector extends CookieKonnector {
 
     // We save the session here a first time.
     await this.saveSession()
+  }
+
+  // Mandatory method for cookieKonnector, do nothing
+  async testSession() {
+    return false
   }
 }
 
