@@ -7,7 +7,7 @@
   "slug": "engie",
   "source": "git@github.com:konnectors/engie.git",
   "editor": "johnkrovitch",
-  "vendor_link": "https://gaz-tarif-reglemente.fr/login-page.html",
+  "vendor_link": "https://particuliers.engie.fr/login-page/authentification.html",
   "categories": [
     "energy"
   ],
@@ -46,8 +46,8 @@
     }
   },
   "developer": {
-    "name": "Arnaud Frézet",
-    "url": "https://github.com/larriereguichet"
+    "name": "Cozy Cloud",
+    "url": "https://cozy.io"
   },
   "langs": [
     "fr",

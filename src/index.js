@@ -193,7 +193,8 @@ class EngieConnector extends CookieKonnector {
     const facture = await this.requestJSON({
       uri: 'https://particuliers.engie.fr/cel-facturation-ws/api/private/situation-comptable/facture'
     })
-
+    console.log(facture)
+    console.log(JSON.parse(facture))
     const entries = []
     const oldFactures = facture.historiqueFacture.factures || {}
     for (const year in oldFactures) {
