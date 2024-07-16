@@ -17,51 +17,16 @@ class EngieConnector extends CookieKonnector {
     await this.login.bind(this)(fields)
     await this.notifySuccessfulLogin()
 
+    const entries = await this.fetchBills.bind(this)()
+    console.log(entries)
+
+    await this.saveFiles(entries, fields)
+
+    // For futur identity purpose
+    // eslint-disable-next-line no-unused-vars
     const personne = await this.requestJSON({
       uri: 'https://particuliers.engie.fr/cel-ws/api/private/personne'
     })
-
-    const facture = await this.requestJSON({
-      uri: 'https://particuliers.engie.fr/cel-facturation-ws/api/private/situation-comptable/facture'
-    })
-
-    const entries = []
-    const oldFactures = facture.historiqueFacture.factures || {}
-    for (const year in oldFactures) {
-      console.log(year)
-      for (const bill of oldFactures[year]) {
-        entries.push({
-          filename: 'Engie ' + bill.date + '_' + bill.montant + '.pdf',
-          fileurl:
-            'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
-            encodeURI(bill.url) +
-            '/SAE/facture.pdf'
-        })
-      }
-    }
-    console.log(entries)
-    // Last bill is separate from archive
-    entries.push({
-      filename:
-        'DERNIERE_Engie ' +
-        facture.derniereFacture.dateDerniereFacture +
-        '_' +
-        facture.derniereFacture.montantFacture +
-        '.pdf',
-      fileurl:
-        'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
-        encodeURI(facture.derniereFacture.url) +
-        '/SAE/facture.pdf',
-      requestOptions: {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0'
-        }
-      }
-    })
-
-    console.log(entries)
-    await this.saveFiles(entries, fields)
 
     await this.saveSession()
   }
@@ -222,6 +187,54 @@ class EngieConnector extends CookieKonnector {
 
     // We save the session here a first time.
     await this.saveSession()
+  }
+
+  async fetchBills() {
+    const facture = await this.requestJSON({
+      uri: 'https://particuliers.engie.fr/cel-facturation-ws/api/private/situation-comptable/facture'
+    })
+
+    const entries = []
+    const oldFactures = facture.historiqueFacture.factures || {}
+    for (const year in oldFactures) {
+      log('debug', `Fetching year ${year}`)
+      for (const bill of oldFactures[year]) {
+        entries.push({
+          filename: 'Engie ' + bill.date + '_' + bill.montant + '.pdf',
+          fileurl:
+            'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
+            encodeURI(bill.url) +
+            '/SAE/facture.pdf',
+          fileAttributes: {
+            metadata: {
+              carbonCopy: true
+            }
+          }
+        })
+      }
+    }
+    console.log('Avant la derniere')
+    console.log(entries)
+    // Last bill is separate from archive
+    entries.push({
+      filename:
+        'DERNIERE_Engie ' +
+        facture.derniereFacture.dateDerniereFacture +
+        '_' +
+        facture.derniereFacture.montantFacture +
+        '.pdf',
+      fileurl:
+        'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/' +
+        encodeURI(facture.derniereFacture.url) +
+        '/SAE/facture.pdf',
+      requestOptions: {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0'
+        }
+      }
+    })
+    return entries
   }
 
   // Mandatory method for cookieKonnector, do nothing

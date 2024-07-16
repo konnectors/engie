@@ -1,6 +1,6 @@
 {
   "version": "1.10.0",
-  "name": "Gaz Tarif Réglementé par Engie",
+  "name": "Engie",
   "type": "konnector",
   "language": "node",
   "icon": "icon.svg",
@@ -40,6 +40,9 @@
     },
     "accounts": {
       "type": "io.cozy.accounts"
+    },
+    "carbon_copy": {
+      "type": "io.cozy.certified.carbon_copy"
     }
   },
   "developer": {
@@ -66,6 +69,9 @@
         },
         "accounts": {
           "description": "Utilisé pour obtenir les données du compte"
+        },
+        "carboncopy": {
+          "description": "Utilisé pour certifier que vos fichiers sont copie conforme avec les documents d'origine"
         }
       }
     },
@@ -84,10 +90,16 @@
         },
         "accounts": {
           "description": "Required to get the account's data"
+        },
+        "carboncopy": {
+          "description": "Required for carbon copy documents"
         }
       }
     }
   },
+  "features": [
+    "CARBON_COPY"
+  ],
   "banksTransactionRegExp": "\\bengie\\b",
   "manifest_version": "2"
 }
