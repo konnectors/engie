@@ -2,6 +2,7 @@ const { CookieKonnector, log, errors } = require('cozy-konnector-libs')
 
 class EngieConnector extends CookieKonnector {
   async fetch(fields) {
+    // Mainly use this json mode for request but not all
     this.requestJSON = this.requestFactory({
       cheerio: false,
       json: true,
@@ -11,9 +12,10 @@ class EngieConnector extends CookieKonnector {
           'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0'
       }
     })
-    await this.deactivateAutoSuccessfulLogin()
 
+    await this.deactivateAutoSuccessfulLogin()
     await this.login.bind(this)(fields)
+    await this.notifySuccessfulLogin()
 
     const personne = await this.requestJSON({
       uri: 'https://particuliers.engie.fr/cel-ws/api/private/personne'
@@ -61,7 +63,6 @@ class EngieConnector extends CookieKonnector {
     console.log(entries)
     await this.saveFiles(entries, fields)
 
-    console.log('CCC')
     await this.saveSession()
   }
 
@@ -91,10 +92,6 @@ class EngieConnector extends CookieKonnector {
       }
     })
 
-    console.log(loginReq)
-    console.log(loginReq._embedded)
-    console.log(loginReq._links)
-    // console.log(loginReq._embedded.factors[0])
     let sessionToken
     if (loginReq.status === 'SUCCESS') {
       log('info', 'Login to identite server ok without 2FA, login to api')
@@ -102,9 +99,13 @@ class EngieConnector extends CookieKonnector {
     } else if (loginReq.status === 'MFA_REQUIRED') {
       log('info', '2FA auth needed')
       if (loginReq?._embedded?.factors.length > 0) {
-        if (loginReq?._embedded?.factors[0]?.factorType === 'email') {
+        const email2faIndex = loginReq._embedded.factors.findIndex(
+          obj => obj.factorType == 'email'
+        )
+        if (email2faIndex) {
           const stateToken = loginReq.stateToken
-          const challengeLink = loginReq._embedded.factors[0]._links.verify.href
+          const challengeLink =
+            loginReq._embedded.factors[email2faIndex]._links.verify.href
           // Getting the email send
           await this.requestJSON({
             method: 'POST',
@@ -131,7 +132,7 @@ class EngieConnector extends CookieKonnector {
             throw new Error(errors.VENDOR_DOWN)
           }
         } else {
-          log('error', 'Not an email 2FA')
+          log('error', 'No 2FA email available')
           throw new Error(errors.VENDOR_DOWN)
         }
       } else {
@@ -155,9 +156,11 @@ class EngieConnector extends CookieKonnector {
 
     // Warning, redirect_uri should not be url encoded here, do not use qs constructor of request
     const oauthUrl =
-      `https://api.dgp.engie.fr/oauth/v1/authorize?` +
-      `client_id=gAeNcRIOkLBQxK0HeZu8JDIPgVn9Pb8n&redirect_uri=https://particuliers.engie.fr/auth-ws/auth-callback&response_type=code&` +
-      `sessionToken=${sessionToken}&state=${state}%7Cparcours%3DMFA_CHALLENGE%7Ckml%3Dtrue&scope=openid profile idb2c apihour:read apihour:write offline_access`
+      `https://api.dgp.engie.fr/oauth/v1/authorize` +
+      `?client_id=gAeNcRIOkLBQxK0HeZu8JDIPgVn9Pb8n` +
+      `&redirect_uri=https://particuliers.engie.fr/auth-ws/auth-callback&response_type=code` +
+      `&sessionToken=${sessionToken}` +
+      `&state=${state}%7Cparcours%3DMFA_CHALLENGE%7Ckml%3Dtrue&scope=openid profile idb2c apihour:read apihour:write offline_access`
     const oauthReq = await this.request({
       uri: oauthUrl
     })
