@@ -76,7 +76,7 @@ class EngieConnector extends CookieKonnector {
         const email2faIndex = loginReq._embedded.factors.findIndex(
           obj => obj.factorType == 'email'
         )
-        if (email2faIndex) {
+        if (email2faIndex >= 0) {
           const stateToken = loginReq.stateToken
           const challengeLink =
             loginReq._embedded.factors[email2faIndex]._links.verify.href
@@ -194,7 +194,6 @@ class EngieConnector extends CookieKonnector {
       uri: 'https://particuliers.engie.fr/cel-facturation-ws/api/private/situation-comptable/facture'
     })
     console.log(facture)
-    console.log(JSON.parse(facture))
     const entries = []
     const oldFactures = facture.historiqueFacture.factures || {}
     for (const year in oldFactures) {
@@ -214,7 +213,6 @@ class EngieConnector extends CookieKonnector {
         })
       }
     }
-    console.log('Avant la derniere')
     console.log(entries)
     // Last bill is separate from archive
     entries.push({
