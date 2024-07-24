@@ -1,453 +1,108 @@
-const {
-  CookieKonnector,
-  log,
-  errors,
-  solveCaptcha
-} = require('cozy-konnector-libs')
+import { ContentScript } from 'cozy-clisk/dist/contentscript'
+import Minilog from '@cozy/minilog'
+const log = Minilog('ContentScript')
+Minilog.enable()
 
-class EngieConnector extends CookieKonnector {
-  async testSession() {
-    try {
-      const { status } = this.getAccountData()
-      if (!status) return false
+const baseUrl = 'https://particuliers.engie.fr/login-page/authentification.html'
+const infoPersoUrl =
+  'https://particuliers.engie.fr/espace-client/prive/mes-infos-personnelles.html'
+const logoutLinkSelector = '[data-testid=deconnexion-trigger]'
+const passwordSelector = 'input[type=password]'
 
-      log('info', 'Testing session')
-      if (status === 'engie') {
-        log('info', 'Found engie session')
-        const jsonRequest = this.requestFactory({
-          cheerio: false,
-          json: true,
-          headers: {
-            Accept: '*/*'
-          }
+class EngieContentScript extends ContentScript {
+  async ensureAuthenticated({ account }) {
+    this.log('info', '🤖 ensureAuthenticated')
+    await this.ensureNotAuthenticated()
+    await this.showLoginFormAndWaitForAuthentication()
+    return true
+  }
+  async getUserDataFromWebsite() {
+    this.log('info', '🤖 getUserDataFromWebsite')
+    await this.goto(infoPersoUrl)
+    await this.waitForElementInWorker('.k-simpleInfo__title span', {
+      includesText: 'Email de connexion'
+    })
+
+    const sourceAccountIdentifier = await this.evaluateInWorker(
+      function getSourceAccountIdentifier() {
+        const span = this.selectElement('.k-simpleInfo__title span', {
+          includesText: 'Email de connexion'
         })
-        const response = await jsonRequest.post(
-          'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token/keepmelogged',
-          {
-            body: {
-              login: '',
-              motDePasse: '',
-              compteActif: true,
-              composante: 'CEL'
-            }
-          }
-        )
-        log('info', 'Session is OK')
-        log('info', JSON.stringify(response))
-        return true
-      } else if (status === 'gazTarifReglemente') {
-        delete this._jar._jar.store.idx['gaz-tarif-reglemente.fr']['/'][
-          'ClientIDCookie'
-        ]
-        await this.createAuthenticationCookie(status)
-        await this.request({
-          uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json'
-          },
-          body: JSON.stringify({
-            login: '',
-            motDePasse: '',
-            compteActif: true,
-            composante: 'CELTR',
-            captchaToken: ''
-          })
-        })
-        const syntheseUrl =
-          'https://gaz-tarif-reglemente.fr/espace-client-tr/synthese.html'
-        const response = await this.request(syntheseUrl)
-        const isOk = response.request.uri.href === syntheseUrl
-        if (isOk) await this.saveSession()
-        return isOk
-      } else {
-        log('error', `could not identify status: ${status}`)
-        throw new Error('VENDOR_DOWN')
+        return span
+          .closest('.k-simpleInfo__details')
+          .querySelector('.k-simpleInfo__label span').innerHTML
       }
-    } catch (err) {
-      log('warn', err.message)
-      log('warn', 'Session failed')
-      await this.resetSession()
-      return false
+    )
+
+    return {
+      sourceAccountIdentifier
     }
   }
-
-  async fetch(fields) {
-    let status
-    if (!(await this.testSession())) {
-      log('info', 'Found no correct session, logging in...')
-      // If status is engie, we try, but as engie auth do not work, it shouldn't happen
-      if (status && status === 'engie') {
-        log('debug', 'Doing engie login')
-        const $ = (await this.engieFetchLoginPage()).body
-        await this.createAuthenticationCookie('engie')
-
-        status = await this.engieAuthenticate(fields.login, fields.password, $)
-      } else {
-        // if (status === 'gazTarifReglemente') {
-        // Try the GTR website
-        log('debug', 'Doing GTR login')
-        status = 'gazTarifReglemente'
-        await this.createAuthenticationCookie(status)
-        await this.authenticateGazTarifReglemente(fields.login, fields.password)
-      }
-
-      await this.saveAccountData({ status })
-      this.saveSession()
-      log('info', 'Successfully logged in')
+  async ensureNotAuthenticated() {
+    this.log('info', '🤖 ensureNotAuthenticated')
+    await this.navigateToLoginForm()
+    await this.waitForElementInWorker(
+      `${passwordSelector}, ${logoutLinkSelector}`
+    )
+    const authenticated = await this.runInWorker('checkAuthenticated')
+    if (!authenticated) {
+      return true
     }
-    status = 'gazTarifReglemente'
-    log('info', `status: ${status}`)
-    let refBP = await this.getCustomerAccountData(status)
-    await this.getBPCCCookie(refBP, status)
-    await this.getBillCookies(status)
-    await this.fetchBills(fields, status)
+
+    await this.clickAndWait(logoutLinkSelector, passwordSelector)
+    return true
+  }
+  async navigateToLoginForm() {
+    this.log('info', '🤖 navigateToLoginForm')
+    await this.goto(baseUrl)
   }
 
-  async engieFetchLoginPage() {
-    log('info', 'Get initial cookies')
-    return await this.request({
-      uri: 'https://particuliers.engie.fr/login-page.html'
+  async checkAuthenticated() {
+    return Boolean(document.querySelector(logoutLinkSelector))
+  }
+
+  async showLoginFormAndWaitForAuthentication() {
+    log.debug('showLoginFormAndWaitForAuthentication start')
+    await this.clickAndWait(loginLinkSelector, '#username')
+    await this.setWorkerState({ visible: true })
+    await this.runInWorkerUntilTrue({
+      method: 'waitForAuthenticated'
     })
+    await this.setWorkerState({ visible: false })
   }
 
-  async engieAuthenticate(login, password, $) {
-    const websiteKey = $("#siteContent script[src*='api.js?render']")
-      .attr('src')
-      .split('=')
-      .pop()
-    if (!websiteKey) {
-      log('error', 'Could not find the websitekey to solve the captcha')
-      throw new Error('VENDOR_DOWN')
-    }
-    const websiteURL = 'https://particuliers.engie.fr/login-page.html'
-    const pageAction = 'login'
+  async fetch(context) {
+    this.log('info', '🤖 fetch')
+    throw new Error('normal fetch error')
+    await this.goto('https://books.toscrape.com')
+    await this.waitForElementInWorker('#promotions')
+    const bills = await this.runInWorker('parseBills')
 
-    const secureToken = await solveCaptcha({
-      type: 'recaptchav3',
-      websiteKey,
-      websiteURL,
-      pageAction,
-      minScore: 0.9
+    await this.saveBills(bills, {
+      contentType: 'image/jpeg',
+      fileIdAttributes: ['filename'],
+      context
     })
 
-    log('info', 'Authenticate to engie website...')
-    try {
-      await this.request({
-        uri: 'https://particuliers.engie.fr/cel-ws/espaceclient/connexion/token',
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        },
-        qs: {
-          ooof: true
-        },
-        body: JSON.stringify({
-          composante: 'CEL',
-          compteActif: 'true',
-          versionC: 'V3',
-          login,
-          motDePasse: password,
-          secureToken
-        })
-      })
-    } catch (err) {
-      if (
-        err.statusCode === 404 &&
-        err.error === '{"code":"COMPTE_PAS_LIE_COMPOSANTE","message":null}'
-      ) {
-        log('info', 'Detecting gaz-tarif-reglemente.fr account')
-        return 'gazTarifReglemente'
-      } else if (err.statusCode === 401 || err.statusCode === 425) {
-        // 425 is for GUT_ERR_TECH_CONNEXION_LOGIN_INEXISTANT in engie api
-        log('error', err.message)
-        throw new Error(errors.LOGIN_FAILED)
-      } else if (err.statusCode !== 200) {
-        log('error', err.message)
-        throw new Error(errors.VENDOR_DOWN)
-      }
-    }
-    // If login successfull
-    return 'engie'
+    const identity = await this.runInWorker('parseIdentity')
+    await this.saveIdentity(identity)
   }
 
-  async authenticateGazTarifReglemente(login, password) {
-    const websiteURL = 'https://gaz-tarif-reglemente.fr/login-page.html'
-    const response = await this.request(websiteURL)
-    log('info', 'Authenticate to the main API on gaz-tarif-reglemente.fr ...')
-    try {
-      /*      const websiteKey = response
-        .body("#siteContent script[src*='api.js?onload=onloadCallback&render']")
-        .attr('src')
-        .split('=')
-        .pop()
-      if (!websiteKey) {
-        log('error', 'Could not find the websitekey to solve the captcha')
-        throw new Error('VENDOR_DOWN')
-      }
-*/
-      const pageAction = 'loginTR'
-
-      //      const websiteKey = "6Lc3iB0UAAAAAIKUlKhz9cd2sPPevX5mOaAbS0ai"
-      const websiteKey = '6LcJGmcbAAAAANd_4Pp5k20WBfimPvw69GCeXRD-'
-      //      const websiteKey = "6LcJGmcbAAAAANd_4Pp5k20WBfimPvw69GCeXRD\u002D"
-      const captchaToken = await solveCaptcha({
-        type: 'recaptchav3',
-        websiteKey,
-        websiteURL,
-        pageAction,
-        minScore: 0.9
-      })
-
-      await this.request({
-        uri: 'https://gaz-tarif-reglemente.fr/cel_tr_ws/espaceclient/connexion/token',
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          composante: 'CELTR',
-          compteActif: true,
-          login: login,
-          motDePasse: password,
-          captchaToken,
-          versionC: 'V3'
-        })
-      })
-    } catch (err) {
-      // Bad password detected here, bad login detected at first auth (engie) for now
-      if (err.statusCode === 425) {
-        log('error', 'Login was at gaz-tarif-reglemente.fr')
-        log('error', err.message)
-        throw new Error(errors.LOGIN_FAILED)
-      } else if (err.statusCode !== 200) {
-        log('error', err.message)
-        throw new Error(errors.VENDOR_DOWN)
-      }
-    }
-
-    // If login successfull
-    return 'gazTarifReglemente'
-  }
-
-  async createAuthenticationCookie(type) {
-    log('info', 'Create the authentication cookie...')
-    let uri
-    const _ = Math.floor(new Date().getTime())
-    if (type === 'engie') {
-      uri =
-        'https://particuliers.engie.fr/bin/engie/servlets/securisation/creationCookie'
-    } else if (type === 'gazTarifReglemente') {
-      uri =
-        'https://gaz-tarif-reglemente.fr/bin/engietr/servlets/securisation/creationCookie'
-    } else {
-      throw new Error('Should never happen, error during login')
-    }
-
-    return await this.request({
-      uri,
-      qs: {
-        param: _ + 3,
-        _: _
-      },
-      method: 'GET'
-    })
-  }
-
-  async getCustomerAccountData(status) {
-    log('info', 'Get customer account data...')
-    let uri
-    let headers
-    if (status === 'engie') {
-      uri =
-        'https://particuliers.engie.fr/cel-ws/api/private/espaceclient/typeCompteClient/v2'
-    } else if (status === 'gazTarifReglemente') {
-      uri =
-        'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/espaceclient/typeCompteClient'
-    } else {
-      throw new Error('Should never happen, error during login')
-    }
-
-    return await this.request({
-      uri,
-      headers,
-      method: 'GET'
-    }).then($ => {
-      let json = JSON.parse($.body.text())
-      return json.refBP
-    })
-  }
-
-  async getBPCCCookie(refBP, status) {
-    log('info', 'Get the BBPC cookie...')
-    let uri
-    if (status === 'engie') {
-      uri =
-        'https://particuliers.engie.fr/cel-ws/api/private/cookie/cookiesBPCC'
-    } else if (status === 'gazTarifReglemente') {
-      uri =
-        'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/cookie/cookiesBPCC'
-    } else {
-      throw new Error('Should never happen, error during login')
-    }
-
-    return await this.request({
-      uri,
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        idApplicatif: refBP,
-        refBP: refBP
-      })
-    })
-  }
-
-  async getBillCookies(status) {
-    log('info', 'Get cookies to be allowed to get bills...')
-    let uri
-    if (status === 'engie') {
-      uri = 'https://particuliers.engie.fr/cel-ws/api/private/compteenligne'
-    } else if (status === 'gazTarifReglemente') {
-      uri =
-        'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/compteenligne'
-    } else {
-      throw new Error('Should never happen, error during login')
-    }
-
-    return await this.request({
-      uri,
-      qs: {
-        prechargerFacture: true,
-        prechargerPaiement: true,
-        performSuiviEM: false,
-        performLirePDL: true
-      },
-      method: 'GET'
-    })
-  }
-
-  async fetchBills(fields, status) {
-    log('info', 'Fetch bills...')
-    let uri1, uri2
-    if (status === 'engie') {
-      uri1 = 'https://particuliers.engie.fr/cel-ws/api/private/factures'
-      uri2 = 'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
-    } else if (status === 'gazTarifReglemente') {
-      uri1 = 'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/factures'
-      uri2 =
-        'https://gaz-tarif-reglemente.fr/cel_tr_ws/api/private/document/mobile/'
-    } else {
-      throw new Error('Should never happen, error during login')
-    }
-
-    let $
-    try {
-      $ = await this.request({
-        uri: uri1,
-        qs: {
-          dateDebutIntervalle: new Date('2000-01-01').toISOString(),
-          dateFinIntervalle: new Date().toISOString()
-        },
-        headers: {
-          'content-type': 'application/json'
-        }
-      })
-    } catch (err) {
-      if (
-        err.statusCode === 400 &&
-        err.error === '{"code":"MISSING_NUMCC","message":null}'
-      ) {
-        log(
-          'warn',
-          "No client account number, account has been suspended as it's " +
-            'probably too old. Bills not accessible anymore.'
-        )
-        throw new Error(errors.USER_ACTION_NEEDED_ACCOUNT_REMOVED)
-      }
-      log('error', 'error while fetching bills')
-      log('error', err.message)
-      throw new Error(errors.VENDOR_DOWN)
-    }
-
-    let data = JSON.parse($.body.text())
-    let bills = []
-
-    data.listeFactures.map(bill => {
-      const date = new Date(bill.dateFacture)
-      const pdfUrl =
-        uri2 +
-        encodeURIComponent(bill.url) +
-        '/SAE/' +
-        ('0' + (date.getDate() + 1)).slice(-2) +
-        ('0' + (date.getMonth() + 1)).slice(-2) +
-        date.getFullYear() +
-        encodeURIComponent('N°') +
-        bill.numeroFacture +
-        '.pdf'
-      const isRefund = Boolean(bill.montantTTC.montant < 0)
-      let amount = bill.montantTTC.montant
-      if (isRefund) amount = Math.abs(amount)
-      const oldFilename =
-        date.getFullYear() +
-        ('0' + (date.getMonth() + 1)).slice(-2) +
-        ('0' + (date.getDay() + 1)).slice(-2) +
-        '_ENGIE_' +
-        bill.libelle +
-        '-' +
-        bill.dateFacture +
-        '.pdf'
-      const filename =
-        date.getFullYear() +
-        '-' +
-        ('0' + (date.getMonth() + 1)).slice(-2) +
-        '-' +
-        ('0' + (date.getDate() + 1)).slice(-2) +
-        '_ENGIE_' +
-        amount.toFixed(2) +
-        '€_' +
-        bill.libelle.replace(/ /g, '-') +
-        '_' +
-        bill.numeroFacture +
-        '.pdf'
-
-      bills.push({
-        subtype: bill.libelle,
-        vendor: 'Engie',
-        date: date,
-        amount,
-        isRefund,
-        currency: 'EUR',
-        fileurl: pdfUrl,
-        filename: filename,
-        shouldReplaceName: oldFilename,
-        vendorRef: bill.numeroFacture,
-        requestOptions: {
-          headers: {
-            Accept: '*/*'
-          }
-        }
-      })
-    })
-
-    await this.saveBills(bills, fields, {
-      sourceAccount: this.accountId,
-      sourceAccountIdentifier: fields.login,
-      fileIdAttributes: ['vendorRef'],
-      linkBankOperations: false
-    })
+  async parseBills() {
+    const articles = document.querySelectorAll('article')
+    return Array.from(articles).map(article => ({
+      amount: normalizePrice(article.querySelector('.price_color')?.innerHTML),
+      date: '2024-01-01', // use a fixed date to avoid the multiplication of bills
+      vendor: 'template',
+      filename: article.querySelector('h3 a')?.getAttribute('title'),
+      fileurl:
+        'https://books.toscrape.com/' +
+        article.querySelector('img')?.getAttribute('src')
+    }))
   }
 }
 
-const connector = new EngieConnector({
-  // debug: 'simple',
-  cheerio: true,
-  json: false,
-  resolveWithFullResponse: true,
-  headers: {
-    Accept: '*/*'
-  }
+const connector = new EngieContentScript()
+connector.init({ additionalExposedMethodsNames: [] }).catch(err => {
+  log.warn(err)
 })
-
-connector.run()
