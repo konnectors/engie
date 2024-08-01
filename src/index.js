@@ -5,6 +5,7 @@ import {
 import { blobToBase64 } from 'cozy-clisk/dist/contentscript/utils'
 import Minilog from '@cozy/minilog'
 import ky from 'ky/umd'
+import waitFor, { TimeoutError } from 'p-wait-for'
 
 const log = Minilog('ContentScript')
 Minilog.enable()
@@ -51,9 +52,8 @@ const requestInterceptor = new RequestInterceptor([
 requestInterceptor.init()
 
 class EngieContentScript extends ContentScript {
-  async ensureAuthenticated({ account }) {
+  async ensureAuthenticated() {
     this.log('info', '🤖 ensureAuthenticated')
-    // await this.ensureNotAuthenticated()
     await this.showLoginFormAndWaitForAuthentication()
     return true
   }
@@ -94,12 +94,34 @@ class EngieContentScript extends ContentScript {
   async showLoginFormAndWaitForAuthentication() {
     log.debug('showLoginFormAndWaitForAuthentication start')
     await this.navigateToLoginForm()
-    // await this.clickAndWait(loginLinkSelector, '#username')
-    await this.setWorkerState({ visible: true })
-    await this.runInWorkerUntilTrue({
-      method: 'waitForAuthenticated'
+    const start = Date.now()
+    let state = await this.runInWorkerUntilTrue({
+      method: 'waitForNextState',
+      args: [false],
+      timeout: 20 * 1000
     })
-    await this.setWorkerState({ visible: false })
+    while (state !== 'connected' && state !== 'loginPage') {
+      this.log('debug', `current state: ${state}`)
+      if (Date.now() - start > 300 * 1000) {
+        throw new Error(
+          'showLoginFormAndWaitForAuthentication took more than 5m'
+        )
+      }
+      await this.triggerNextLoginState(state)
+      state = await this.runInWorkerUntilTrue({
+        method: 'waitForNextState',
+        args: [state],
+        timeout: 20 * 1000
+      })
+    }
+
+    if (state === 'loginPage') {
+      await this.setWorkerState({ visible: true })
+      await this.runInWorkerUntilTrue({
+        method: 'waitForAuthenticated'
+      })
+      await this.setWorkerState({ visible: false })
+    }
   }
 
   /**
@@ -245,12 +267,91 @@ class EngieContentScript extends ContentScript {
       }
     )
   }
+
+  async getCurrentState() {
+    const isLoginPage = await this.checkForElement(passwordSelector)
+    const isAlreadyLogged = await this.checkForElement(
+      `img[src*='illu-inbox-success.svg']`
+    )
+    const isBrowserNotYoung = await this.checkForElement(`p`, {
+      includesText: 'Votre navigateur n’est plus tout jeune'
+    })
+    const isOldBrowser = window.location.href.includes(
+      'page-navigateur-obsolete.html'
+    )
+    const isConnected = await this.checkForElement(
+      `a[data-testid=deconnexion-trigger]`
+    )
+
+    if (isBrowserNotYoung) {
+      return 'browserNotYoung'
+    } else if (isOldBrowser) {
+      return 'oldBrowser'
+    } else if (isAlreadyLogged) {
+      return 'alreadyLogged'
+    } else if (isConnected) {
+      return 'connected'
+    } else if (isLoginPage) {
+      return 'loginPage'
+    } else return false
+  }
+
+  async triggerNextLoginState(currentState) {
+    this.log('info', '📍️ triggerNextLoginState starts')
+    if (currentState === 'alreadyLogged') {
+      await this.runInWorker('click', 'button', {
+        includesText: `Accéder à l'Espace Client`
+      })
+    } else if (currentState === 'browserNotYoung') {
+      await this.runInWorker('click', 'button', {
+        includesText: `Mettre à jour`
+      })
+    } else if (currentState === 'oldBrowser') {
+      await this.runInWorker(
+        'click',
+        `a[href='https://particuliers.engie.fr/']`
+      )
+    } else if (currentState === 'loginPage') {
+      // the user will do the login
+    } else {
+      throw new Error(`Unknown page state: ${currentState}`)
+    }
+  }
+
+  async waitForNextState(previousState) {
+    let currentState
+    await waitFor(
+      async () => {
+        currentState = await this.getCurrentState()
+        this.log('info', 'waitForNextState: currentState ' + currentState)
+        if (currentState === false) return false
+        const result = previousState !== currentState
+        return result
+      },
+      {
+        interval: 1000,
+        timeout: {
+          milliseconds: 30 * 1000,
+          message: new TimeoutError(
+            `waitForNextState timed out after ${
+              30 * 1000
+            }ms waiting for a state different from ${previousState}`
+          )
+        }
+      }
+    )
+    return currentState
+  }
 }
 
 const connector = new EngieContentScript({ requestInterceptor })
-connector.init({ additionalExposedMethodsNames: [] }).catch(err => {
-  log.warn(err)
-})
+connector
+  .init({
+    additionalExposedMethodsNames: ['waitForNextState', 'getCurrentState']
+  })
+  .catch(err => {
+    log.warn(err)
+  })
 
 function bruteParseDate(dateString) {
   let [day, month, year] = dateString.split(' ')
