@@ -6367,11 +6367,11 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
   async fetch(context) {
     this.log('info', '🤖 fetch')
 
-    await this.fetchAttestations(context)
-    await this.fetchFactures(context)
+    const contract = await this.fetchAttestations(context)
+    await this.fetchFactures(context, contract)
   }
 
-  async fetchFactures(context) {
+  async fetchFactures(context, contract) {
     await this.goto(facturesUrl)
     const interception = await this.waitForRequestInterception('factures')
     const derniereFacture = interception.response.derniereFacture
@@ -6405,6 +6405,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       ],
       {
         context,
+        contract,
         fileIdAttributes: ['vendorRef'],
         contentType: 'application/pdf',
         qualificationLabel: 'energy_invoice'
@@ -6432,7 +6433,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
         ).padStart(2, '0')}-${String(fac.parsedDate.getDate()).padStart(
           2,
           '0'
-        )}_Engie_${parseInt(fac.montant, 10)}.pdf`,
+        )}_Engie_${parseFloat(fac.montant, 10)}€.pdf`,
         vendorRef: fac.vendorRef,
         fileurl: fac.fileurl,
         fileAttributes: {
@@ -6445,6 +6446,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
 
     await this.saveFiles(factures, {
       context,
+      contract,
       fileIdAttributes: ['vendorRef'],
       contentType: 'application/pdf',
       qualificationLabel: 'energy_invoice'
@@ -6456,6 +6458,11 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
 
     const idContrat = await this.waitForRequestInterception('idContrat')
     const vendorRef = idContrat.response
+
+    const contract = {
+      id: vendorRef,
+      name: vendorRef
+    }
 
     await this.saveFiles(
       [
@@ -6480,11 +6487,13 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       ],
       {
         context,
+        contract,
         fileIdAttributes: ['vendorRef'],
         contentType: 'application/pdf',
         qualificationLabel: 'energy_invoice'
       }
     )
+    return contract
   }
 
   async getCurrentState() {
