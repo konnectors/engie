@@ -47,13 +47,22 @@ const requestInterceptor = new RequestInterceptor([
     method: 'GET',
     url: '/cel-facturation-ws/api/private/situation-comptable/facture',
     serialization: 'json'
+  },
+  {
+    identifier: 'mes-coordonnees',
+    method: 'GET',
+    url: '/cel-gut-ws/api/private/mes-coordonnees',
+    serialization: 'json'
   }
 ])
 requestInterceptor.init()
 
 class EngieContentScript extends ContentScript {
-  async ensureAuthenticated() {
+  async ensureAuthenticated({ account }) {
     this.log('info', '🤖 ensureAuthenticated')
+    if (!account) {
+      await this.ensureNotAuthenticated()
+    }
     await this.showLoginFormAndWaitForAuthentication()
     return true
   }
@@ -150,6 +159,46 @@ class EngieContentScript extends ContentScript {
 
     const contract = await this.fetchAttestations(context)
     await this.fetchFactures(context, contract)
+    await this.fetchIdentity()
+  }
+
+  async fetchIdentity() {
+    await this.goto(infoPersoUrl)
+    const interception = await this.waitForRequestInterception(
+      'mes-coordonnees'
+    )
+
+    const phone = []
+    if (interception.response.fixe) {
+      phone.push({
+        type: 'home',
+        number: interception.response.fixe
+      })
+    }
+    if (interception.response.fixe) {
+      phone.push({
+        type: 'mobile',
+        number: interception.response.portable
+      })
+    }
+
+    const identity = {
+      email: interception.response.email,
+      name: {
+        fullName: interception.response.titulaire
+      },
+      address: [
+        {
+          formattedAddress: interception.response.adresseComplete,
+          street: `${interception.response.numeroVoie} ${interception.response.libelleVoie}`,
+          postCode: interception.response.cp,
+          city: interception.response.ville
+        }
+      ],
+      phone
+    }
+
+    await this.saveIdentity(identity)
   }
 
   async fetchFactures(context, contract) {
@@ -162,9 +211,13 @@ class EngieContentScript extends ContentScript {
     const urlParams = url.searchParams
     const vendorRef = urlParams.get('docId')
 
-    await this.saveFiles(
+    const amount = parseFloat(derniereFacture.montantFacture.replace('€', ''))
+    await this.saveBills(
       [
         {
+          vendor: 'Engie',
+          amount,
+          date: parsedDate,
           filename: `${parsedDate.getYear() + 1900}-${String(
             parsedDate.getMonth() + 1
           ).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(
@@ -209,6 +262,9 @@ class EngieContentScript extends ContentScript {
         )
       }))
       .map(fac => ({
+        vendor: 'Engie',
+        amount: parseFloat(fac.montant, 10),
+        date: fac.parsedDate,
         filename: `${fac.parsedDate.getYear() + 1900}-${String(
           fac.parsedDate.getMonth() + 1
         ).padStart(2, '0')}-${String(fac.parsedDate.getDate()).padStart(
@@ -225,7 +281,7 @@ class EngieContentScript extends ContentScript {
         }
       }))
 
-    await this.saveFiles(factures, {
+    await this.saveBills(factures, {
       context,
       contract,
       fileIdAttributes: ['vendorRef'],
