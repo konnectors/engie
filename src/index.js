@@ -213,7 +213,7 @@ class EngieContentScript extends ContentScript {
         ).padStart(2, '0')}-${String(fac.parsedDate.getDate()).padStart(
           2,
           '0'
-        )}_Engie_${parseInt(fac.montant, 10)}.pdf`,
+        )}_Engie_${parseFloat(fac.montant, 10)}€.pdf`,
         vendorRef: fac.vendorRef,
         fileurl: fac.fileurl,
         fileAttributes: {
