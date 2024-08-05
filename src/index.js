@@ -148,11 +148,11 @@ class EngieContentScript extends ContentScript {
   async fetch(context) {
     this.log('info', '🤖 fetch')
 
-    await this.fetchAttestations(context)
-    await this.fetchFactures(context)
+    const contract = await this.fetchAttestations(context)
+    await this.fetchFactures(context, contract)
   }
 
-  async fetchFactures(context) {
+  async fetchFactures(context, contract) {
     await this.goto(facturesUrl)
     const interception = await this.waitForRequestInterception('factures')
     const derniereFacture = interception.response.derniereFacture
@@ -186,6 +186,7 @@ class EngieContentScript extends ContentScript {
       ],
       {
         context,
+        contract,
         fileIdAttributes: ['vendorRef'],
         contentType: 'application/pdf',
         qualificationLabel: 'energy_invoice'
@@ -226,6 +227,7 @@ class EngieContentScript extends ContentScript {
 
     await this.saveFiles(factures, {
       context,
+      contract,
       fileIdAttributes: ['vendorRef'],
       contentType: 'application/pdf',
       qualificationLabel: 'energy_invoice'
@@ -237,6 +239,11 @@ class EngieContentScript extends ContentScript {
 
     const idContrat = await this.waitForRequestInterception('idContrat')
     const vendorRef = idContrat.response
+
+    const contract = {
+      id: vendorRef,
+      name: vendorRef
+    }
 
     await this.saveFiles(
       [
@@ -261,11 +268,13 @@ class EngieContentScript extends ContentScript {
       ],
       {
         context,
+        contract,
         fileIdAttributes: ['vendorRef'],
         contentType: 'application/pdf',
         qualificationLabel: 'energy_invoice'
       }
     )
+    return contract
   }
 
   async getCurrentState() {
