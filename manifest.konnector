@@ -1,6 +1,6 @@
 {
   "version": "2.1.0",
-  "name": "Gaz Tarif Réglementé par Engie",
+  "name": "Engie",
   "type": "konnector",
   "language": "node",
   "icon": "icon.svg",
