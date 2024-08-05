@@ -6579,61 +6579,63 @@ function bruteParseDate(dateString) {
 
   switch (month) {
     case 'Jan.':
-    case 'Janvier':
+    case 'janvier':
       month = '01'
       break
     case 'Fév.':
     case 'Fev.':
     case 'Févr.':
     case 'Fevr.':
-    case 'Fevrier':
-    case 'Février':
+    case 'fevrier':
+    case 'février':
       month = '02'
       break
     case 'Mar.':
-    case 'Mars':
+    case 'mars':
       month = '03'
       break
     case 'Avr.':
     case 'Avri.':
-    case 'Avril':
+    case 'avril':
       month = '04'
       break
+    case 'mai':
     case 'Mai':
       month = '05'
       break
     case 'Juin':
+    case 'juin':
     case 'Jui.':
       month = '06'
       break
     case 'Juil.':
-    case 'Juillet':
+    case 'juillet':
       month = '07'
       break
-    case 'Août':
-    case 'Aout':
+    case 'août':
+    case 'aout':
     case 'Aoû.':
     case 'Aou.':
       month = '08'
       break
     case 'Sept.':
-    case 'Septembre':
+    case 'septembre':
       month = '09'
       break
     case 'Oct.':
-    case 'Octobre':
+    case 'octobre':
       month = '10'
       break
     case 'Nov.':
-    case 'Novembre':
+    case 'novembre':
       month = '11'
       break
     case 'Déc.':
     case 'Dec.':
     case 'Déce.':
     case 'Dece.':
-    case 'Décembre':
-    case 'Decembre':
+    case 'décembre':
+    case 'decembre':
       month = '12'
       break
   }
