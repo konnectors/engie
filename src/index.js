@@ -22,6 +22,7 @@ const factureDownloadUrl =
   'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
 const logoutLinkSelector = '[data-testid=deconnexion-trigger]'
 const passwordSelector = 'input[type=password]'
+const loginSelector = 'input[type=email]'
 
 const requestInterceptor = new RequestInterceptor([
   {
@@ -58,8 +59,61 @@ const requestInterceptor = new RequestInterceptor([
 requestInterceptor.init()
 
 class EngieContentScript extends ContentScript {
+  async onWorkerReady() {
+    await this.waitForElementNoReload.bind(this)(passwordSelector)
+    const submitButton = document.querySelector(
+      '.k-cta.k-cta--genBlue.k-cta--primary:not([id*=pushCta-])'
+    )
+    // Using classic event won't work properly, as all events only return "isTrusted" value
+    // When submitting the form, the submit button mutate to disable himself and adds a spinner while waiting for the server response
+    // Using this we ensure the user actually submit the loginForm
+    const observer = new MutationObserver(mutationsList => {
+      for (const mutation of mutationsList) {
+        if (
+          mutation.type === 'attributes' &&
+          mutation.attributeName === 'disabled'
+        ) {
+          if (submitButton.disabled) {
+            this.log('debug', 'Submit detected, emitting credentials')
+            this.emitCredentials.bind(this)()
+          }
+        }
+      }
+    })
+    observer.observe(submitButton, { attributes: true })
+  }
+
+  onWorkerEvent({ event, payload }) {
+    this.log('info', 'onWorkerEvent starts')
+    if (event === 'loginSubmit') {
+      this.log('info', `User's credential intercepted`)
+      const { login, password } = payload
+      this.store.userCredentials = { login, password }
+    }
+  }
+
+  emitCredentials() {
+    this.log('info', '📍️ emitCredentials starts')
+    const loginField = document.querySelector(loginSelector)
+    const passwordField = document.querySelector(passwordSelector)
+    if (loginField && passwordField) {
+      this.log('info', 'Found credentials fields, adding submit listener')
+      const login = loginField.value
+      const password = passwordField.value
+      const event = 'loginSubmit'
+      const payload = { login, password }
+      this.bridge.emit('workerEvent', {
+        event,
+        payload
+      })
+    } else {
+      this.log('warn', 'Cannot find credentials fields, check the code')
+    }
+  }
+
   async ensureAuthenticated({ account }) {
     this.log('info', '🤖 ensureAuthenticated')
+    this.bridge.addEventListener('workerEvent', this.onWorkerEvent.bind(this))
     if (!account) {
       await this.ensureNotAuthenticated()
     }
