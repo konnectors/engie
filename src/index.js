@@ -177,8 +177,9 @@ class EngieContentScript extends ContentScript {
         timeout: 20 * 1000
       })
     }
-
+    const credentials = await this.getCredentials()
     if (state === 'loginPage') {
+      await this.runInWorker('autoFill', credentials)
       await this.setWorkerState({ visible: true })
       await this.runInWorkerUntilTrue({
         method: 'waitForAuthenticated'
@@ -461,12 +462,29 @@ class EngieContentScript extends ContentScript {
     )
     return currentState
   }
+
+  async autoFill(credentials) {
+    if (credentials) {
+      const loginElement = document.querySelector(loginSelector)
+      const passwordElement = document.querySelector(passwordSelector)
+      loginElement.addEventListener('click', () => {
+        loginElement.value = credentials.login
+      })
+      passwordElement.addEventListener('click', () => {
+        passwordElement.value = credentials.password
+      })
+    }
+  }
 }
 
 const connector = new EngieContentScript({ requestInterceptor })
 connector
   .init({
-    additionalExposedMethodsNames: ['waitForNextState', 'getCurrentState']
+    additionalExposedMethodsNames: [
+      'waitForNextState',
+      'getCurrentState',
+      'autoFill'
+    ]
   })
   .catch(err => {
     log.warn(err)
