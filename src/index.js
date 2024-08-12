@@ -136,9 +136,30 @@ class EngieContentScript extends ContentScript {
   async ensureNotAuthenticated() {
     this.log('info', '🤖 ensureNotAuthenticated')
     await this.navigateToLoginForm()
-    await this.waitForElementInWorker(
-      `${passwordSelector}, ${logoutLinkSelector}`
+
+    await this.PromiseRaceWithError(
+      [
+        this.waitForElementInWorker(
+          `${passwordSelector}, ${logoutLinkSelector}`
+        ),
+        this.waitForElementInWorker('button > span', {
+          includesText: 'Se déconnecter'
+        })
+      ],
+      'ensureNotAuthenticated: waiting for loaded authentication page'
     )
+
+    if (
+      !(await this.isElementInWorker('button > span', {
+        includesText: 'Se déconnecter'
+      }))
+    ) {
+      await this.runInWorker('click', 'button > span', {
+        includesText: 'Se déconnecter'
+      })
+      await this.waitForElementInWorker(passwordSelector)
+    }
+
     const authenticated = await this.runInWorker('checkAuthenticated')
     if (!authenticated) {
       return true
@@ -475,6 +496,25 @@ class EngieContentScript extends ContentScript {
       passwordElement.addEventListener('click', () => {
         passwordElement.value = credentials.password
       })
+    }
+  }
+
+  async PromiseRaceWithError(promises, msg) {
+    try {
+      this.log('debug', msg)
+      await Promise.race(promises)
+    } catch (err) {
+      if (err instanceof Error) {
+        this.log('warn', err?.message || err)
+      } else {
+        this.log(
+          'warn',
+          `caught an Error which is not instance of Error: ${
+            err?.message || JSON.stringify(err)
+          }`
+        )
+      }
+      throw new Error(`${msg} failed to meet conditions`)
     }
   }
 }
