@@ -6286,20 +6286,22 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
     // Using classic event won't work properly, as all events only return "isTrusted" value
     // When submitting the form, the submit button mutate to disable himself and adds a spinner while waiting for the server response
     // Using this we ensure the user actually submit the loginForm
-    const observer = new MutationObserver(mutationsList => {
-      for (const mutation of mutationsList) {
-        if (
-          mutation.type === 'attributes' &&
-          mutation.attributeName === 'disabled'
-        ) {
-          if (submitButton.disabled) {
-            this.log('debug', 'Submit detected, emitting credentials')
-            this.emitCredentials.bind(this)()
+    if (MutationObserver) {
+      const observer = new MutationObserver(mutationsList => {
+        for (const mutation of mutationsList) {
+          if (
+            mutation.type === 'attributes' &&
+            mutation.attributeName === 'disabled'
+          ) {
+            if (submitButton.disabled) {
+              this.log('debug', 'Submit detected, emitting credentials')
+              this.emitCredentials.bind(this)()
+            }
           }
         }
-      }
-    })
-    observer.observe(submitButton, { attributes: true })
+      })
+      observer.observe(submitButton, { attributes: true })
+    }
   }
 
   onWorkerEvent({ event, payload }) {
@@ -6353,9 +6355,30 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
   async ensureNotAuthenticated() {
     this.log('info', '🤖 ensureNotAuthenticated')
     await this.navigateToLoginForm()
-    await this.waitForElementInWorker(
-      `${passwordSelector}, ${logoutLinkSelector}`
+
+    await this.PromiseRaceWithError(
+      [
+        this.waitForElementInWorker(
+          `${passwordSelector}, ${logoutLinkSelector}`
+        ),
+        this.waitForElementInWorker('button > span', {
+          includesText: 'Se déconnecter'
+        })
+      ],
+      'ensureNotAuthenticated: waiting for loaded authentication page'
     )
+
+    if (
+      !(await this.isElementInWorker('button > span', {
+        includesText: 'Se déconnecter'
+      }))
+    ) {
+      await this.runInWorker('click', 'button > span', {
+        includesText: 'Se déconnecter'
+      })
+      await this.waitForElementInWorker(passwordSelector)
+    }
+
     const authenticated = await this.runInWorker('checkAuthenticated')
     if (!authenticated) {
       return true
@@ -6430,6 +6453,10 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
 
   async fetch(context) {
     this.log('info', '🤖 fetch')
+
+    if (this.store.userCredentials) {
+      await this.saveCredentials(this.store.userCredentials)
+    }
 
     const contract = await this.fetchAttestations(context)
     await this.fetchFactures(context, contract)
@@ -6692,6 +6719,25 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       passwordElement.addEventListener('click', () => {
         passwordElement.value = credentials.password
       })
+    }
+  }
+
+  async PromiseRaceWithError(promises, msg) {
+    try {
+      this.log('debug', msg)
+      await Promise.race(promises)
+    } catch (err) {
+      if (err instanceof Error) {
+        this.log('warn', err?.message || err)
+      } else {
+        this.log(
+          'warn',
+          `caught an Error which is not instance of Error: ${
+            err?.message || JSON.stringify(err)
+          }`
+        )
+      }
+      throw new Error(`${msg} failed to meet conditions`)
     }
   }
 }
