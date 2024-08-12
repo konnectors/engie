@@ -235,6 +235,10 @@ class EngieContentScript extends ContentScript {
   async fetch(context) {
     this.log('info', '🤖 fetch')
 
+    if (this.store.userCredentials) {
+      await this.saveCredentials(this.store.userCredentials)
+    }
+
     const contract = await this.fetchAttestations(context)
     await this.fetchFactures(context, contract)
     await this.fetchIdentity()
