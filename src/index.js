@@ -67,20 +67,22 @@ class EngieContentScript extends ContentScript {
     // Using classic event won't work properly, as all events only return "isTrusted" value
     // When submitting the form, the submit button mutate to disable himself and adds a spinner while waiting for the server response
     // Using this we ensure the user actually submit the loginForm
-    const observer = new MutationObserver(mutationsList => {
-      for (const mutation of mutationsList) {
-        if (
-          mutation.type === 'attributes' &&
-          mutation.attributeName === 'disabled'
-        ) {
-          if (submitButton.disabled) {
-            this.log('debug', 'Submit detected, emitting credentials')
-            this.emitCredentials.bind(this)()
+    if (MutationObserver) {
+      const observer = new MutationObserver(mutationsList => {
+        for (const mutation of mutationsList) {
+          if (
+            mutation.type === 'attributes' &&
+            mutation.attributeName === 'disabled'
+          ) {
+            if (submitButton.disabled) {
+              this.log('debug', 'Submit detected, emitting credentials')
+              this.emitCredentials.bind(this)()
+            }
           }
         }
-      }
-    })
-    observer.observe(submitButton, { attributes: true })
+      })
+      observer.observe(submitButton, { attributes: true })
+    }
   }
 
   onWorkerEvent({ event, payload }) {
