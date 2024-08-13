@@ -1,12 +1,10 @@
 language: node_js
 node_js:
-- '16.20.2'
+- 16.20.2
 env:
   global:
   - MATTERMOST_CHANNEL=publication
-  # REGISTRY_TOKEN(editor=cozy, app=engie)
   - secure: lRokzovPzmNh98phi8R4CHRWxsPksKzhbfYGguQJzRNiJ4ywdugC9FFZUEuzkmsUhnksEkniIQaIJk9iBTDpm3yX3m1z9RVoR5LJTbKCF3xqsjukT38PhVkn+FIIXZA1Hgs0O+A0I0Ju0MqBr/SzGmOZzm/t7f+j61jDBoyzRq+GbuXgwdbtZf1PBihDC3GiF1qL1+HsSFKCm6fLDbc/KA/IkdXSwF7YGmlFC+EEsfG/ksl9AXfp94b1jFQWrkL1S06io7bWSnsPjuRvhrxcT7jeyOVpFQdkSs5sjGntAfbuVG4FW+x41ax82F4ewbjh2h/305IeVBf5GU2yYxaYAFocWuFgzPYSjhJUpDBr9ydiMhUra+5XU94m6mhscrMc4tXoYRCPxq2rxmLekwhR2Rb8Tnx678k4MCYpHD5TAlc/m1JKOiN1pKaj2tuTfW8oIVfF8l1rR5TGJPf32nnxMVTR3OnhrXtyVnF3Ys2RMby9/BK6eenSO9scZs6kfdmnn1PR9dqEy4mNFEhejssTrsJMsQbUIxZUnGNMiqFWvEZ3ZQ7OU781Ulh9FYhEeSvqR/EgCmKZDR4XgYwnukHBTwcz3RoZTlysz0Btae6TRP7rD+LjXGgNTgR0VbLuA/ftv4a+7AI9SI1YCaw8zrI2lgGWKfPNvM7GbdXkUn+/oQo=
-  # MATTERMOST_HOOK_URL
   - secure: Hw0zn4rm1ypYPxJ8s+mHpZJXFyNcNbE0pZGLv2PJajL6SdUBewQZkTrVzx+TvnvQXPHoDQ3/kPSRkfZfwDdOrouJr9vpUVs0eyIFl0r4AxudVL8gaCBvkY9rqnhCeOR4F6oZXz22GxjZxCCOPE0VVFbqYtvByxAHvAlKPu+2jpksJTFXt5mVWxdqDBROiJCHgaZDY0WbXEd19icZDc+yywQbYxWb/w6N5dDt2M7PFVGYgycm46pBhtg2CRyAEGAVSVaIS1yltn2WnBKP5lC+lm75fTBx9Kc55gXixvkzR/P06lQqUWwmREcMTFAya7vfOV/ra0Bc8gdcE1kVmuZDSXfflZpeaEigWTF3GmyFcrAdwNFn0xPrTmNAU2Wy2sDhH07XekpKVF/tJsNr8KLSRbmskoaD9eIX9J9hdeE9ZARjTGqdWso+mfFw3Jf/MRRuE4qHT3cvioGfsbqh5MaI7fkUqLk8t7sJ6ENZTjSy17/cM/T1LQ6DDq2l4PS88S5t5Y5iz027vmD2we2sK4D5JNIqf4Cfb/3AnRT7BSLoNtprx+QnGyl5+5CmluZo9OgL58Sk453L5u9fcAXMsQ9qJyViAv+cI8yZcBLVEXZPBBcVdxMIdzcn+5QOf5r1fVAg7pOYecSTUA57/ZgVmLCPtMbRwERxkC0sRJajO5zS0pk=
 cache:
   yarn: true
@@ -31,7 +29,7 @@ deploy:
   on:
     tags: true
 before_install:
-- openssl aes-256-cbc -K $encrypted_54ce064105de_key -iv $encrypted_54ce064105de_iv
+- openssl aes-256-cbc -K $encrypted_8ebb1ef83f64_key -iv $encrypted_8ebb1ef83f64_iv
   -in github_deploy_key.enc -out /tmp/github_deploy_key -d
 - eval "$(ssh-agent -s)"
 - chmod 600 /tmp/github_deploy_key
