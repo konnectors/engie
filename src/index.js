@@ -314,6 +314,9 @@ class EngieContentScript extends ContentScript {
           fileAttributes: {
             metadata: {
               contentAuthor: 'engie',
+              issueDate: new Date(),
+              datetime: parsedDate,
+              datetimeLabel: 'startDate',
               carbonCopy: true
             }
           }
@@ -358,6 +361,9 @@ class EngieContentScript extends ContentScript {
         fileAttributes: {
           metadata: {
             contentAuthor: 'engie',
+            issueDate: new Date(),
+            datetime: fac.parsedDate,
+            datetimeLabel: 'startDate',
             carbonCopy: true
           }
         }
@@ -399,7 +405,10 @@ class EngieContentScript extends ContentScript {
           fileAttributes: {
             metadata: {
               contentAuthor: 'engie',
-              carbonCopy: true
+              carbonCopy: true,
+              issueDate: new Date(),
+              datetime: new Date(),
+              datetimeLabel: 'startDate'
             }
           }
         }
