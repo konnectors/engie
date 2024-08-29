@@ -83,7 +83,7 @@
     "METADATA_DEDUP",
     "CARBON_COPY",
     "DOC_QUALIFICATION_V2"
-  ]
+  ],
   "banksTransactionRegExp": "\\bengie\\b",
   "manifest_version": "2"
 }
