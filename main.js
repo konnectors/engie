@@ -6525,6 +6525,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
             2,
             '0'
           )}_Engie_${derniereFacture.montantFacture}.pdf`,
+          fileIdAttributes: ['vendorRef'],
           vendorRef,
           fileurl:
             factureDownloadUrl +
@@ -6576,12 +6577,15 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
           '0'
         )}_Engie_${parseFloat(fac.montant, 10)}€.pdf`,
         vendorRef: fac.vendorRef,
+        fileIdAttributes: ['vendorRef'],
         fileurl: fac.fileurl,
         fileAttributes: {
           metadata: {
             contentAuthor: 'engie',
             issueDate: new Date(),
             datetime: fac.parsedDate,
+            invoiceNumber: `${fac.vendorRef}`,
+            isSubscription: true,
             datetimeLabel: 'startDate',
             carbonCopy: true
           }
@@ -6621,6 +6625,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
             ['idContrat', vendorRef],
             ['is2DDoc', true]
           ],
+          fileIdAttributes: ['vendorRef'],
           fileAttributes: {
             metadata: {
               contentAuthor: 'engie',
