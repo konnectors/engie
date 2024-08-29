@@ -306,6 +306,7 @@ class EngieContentScript extends ContentScript {
             2,
             '0'
           )}_Engie_${derniereFacture.montantFacture}.pdf`,
+          fileIdAttributes: ['vendorRef'],
           vendorRef,
           fileurl:
             factureDownloadUrl +
@@ -357,12 +358,15 @@ class EngieContentScript extends ContentScript {
           '0'
         )}_Engie_${parseFloat(fac.montant, 10)}€.pdf`,
         vendorRef: fac.vendorRef,
+        fileIdAttributes: ['vendorRef'],
         fileurl: fac.fileurl,
         fileAttributes: {
           metadata: {
             contentAuthor: 'engie',
             issueDate: new Date(),
             datetime: fac.parsedDate,
+            invoiceNumber: `${fac.vendorRef}`,
+            isSubscription: true,
             datetimeLabel: 'startDate',
             carbonCopy: true
           }
@@ -402,6 +406,7 @@ class EngieContentScript extends ContentScript {
             ['idContrat', vendorRef],
             ['is2DDoc', true]
           ],
+          fileIdAttributes: ['vendorRef'],
           fileAttributes: {
             metadata: {
               contentAuthor: 'engie',
