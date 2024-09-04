@@ -6507,49 +6507,51 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
     const interception = await this.waitForRequestInterception('factures')
     const derniereFacture = interception.response.derniereFacture
 
-    const parsedDate = bruteParseDate(derniereFacture.dateDerniereFacture)
-    const url = new URL(decodeURIComponent(derniereFacture.url))
-    const urlParams = url.searchParams
-    const vendorRef = urlParams.get('docId')
+    if (derniereFacture) {
+      const parsedDate = bruteParseDate(derniereFacture.dateDerniereFacture)
+      const url = new URL(decodeURIComponent(derniereFacture.url))
+      const urlParams = url.searchParams
+      const vendorRef = urlParams.get('docId')
 
-    const amount = parseFloat(derniereFacture.montantFacture.replace('€', ''))
-    await this.saveBills(
-      [
-        {
-          vendor: 'Engie',
-          amount,
-          date: parsedDate,
-          filename: `${parsedDate.getYear() + 1900}-${String(
-            parsedDate.getMonth() + 1
-          ).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(
-            2,
-            '0'
-          )}_Engie_${derniereFacture.montantFacture}.pdf`,
-          fileIdAttributes: ['vendorRef'],
-          vendorRef,
-          fileurl:
-            factureDownloadUrl +
-            encodeURIComponent(derniereFacture.url) +
-            '/SAE/facture.pdf',
-          fileAttributes: {
-            metadata: {
-              contentAuthor: 'engie',
-              issueDate: new Date(),
-              datetime: parsedDate,
-              datetimeLabel: 'startDate',
-              carbonCopy: true
+      const amount = parseFloat(derniereFacture.montantFacture.replace('€', ''))
+      await this.saveBills(
+        [
+          {
+            vendor: 'Engie',
+            amount,
+            date: parsedDate,
+            filename: `${parsedDate.getYear() + 1900}-${String(
+              parsedDate.getMonth() + 1
+            ).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(
+              2,
+              '0'
+            )}_Engie_${derniereFacture.montantFacture}.pdf`,
+            fileIdAttributes: ['vendorRef'],
+            vendorRef,
+            fileurl:
+              factureDownloadUrl +
+              encodeURIComponent(derniereFacture.url) +
+              '/SAE/facture.pdf',
+            fileAttributes: {
+              metadata: {
+                contentAuthor: 'engie',
+                issueDate: new Date(),
+                datetime: parsedDate,
+                datetimeLabel: 'startDate',
+                carbonCopy: true
+              }
             }
           }
+        ],
+        {
+          context,
+          contract,
+          fileIdAttributes: ['vendorRef'],
+          contentType: 'application/pdf',
+          qualificationLabel: 'energy_invoice'
         }
-      ],
-      {
-        context,
-        contract,
-        fileIdAttributes: ['vendorRef'],
-        contentType: 'application/pdf',
-        qualificationLabel: 'energy_invoice'
-      }
-    )
+      )
+    }
 
     const factures = Object.values(
       interception.response.historiqueFacture.factures
