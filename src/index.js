@@ -20,7 +20,7 @@ const facturesUrl =
   'https://particuliers.engie.fr/espace-client/prive/mes-factures.html'
 const factureDownloadUrl =
   'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
-const logoutLinkSelector = '[data-testid=deconnexion-trigger]'
+const logoutLinkSelector = '#header-deconnexion'
 const passwordSelector = 'input[type=password]'
 const loginSelector = 'input[type=email]'
 
