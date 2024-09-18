@@ -284,6 +284,9 @@ class EngieContentScript extends ContentScript {
   }
 
   async fetchFactures(context, contract) {
+    if (!contract) {
+      return
+    }
     await this.goto(facturesUrl)
     const interception = await this.waitForRequestInterception('factures')
     const derniereFacture = interception.response.derniereFacture
@@ -386,8 +389,12 @@ class EngieContentScript extends ContentScript {
 
   async fetchAttestations(context) {
     await this.goto(homeUrl)
-
-    const idContrat = await this.waitForRequestInterception('idContrat')
+    try {
+      const idContrat = await this.waitForRequestInterception('idContrat')
+    } catch (err) {
+      this.log('warn', 'Found no contract, no attestation to fetch')
+      return false
+    }
     const vendorRef = idContrat.response
 
     const contract = {
