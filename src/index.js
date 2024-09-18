@@ -389,8 +389,9 @@ class EngieContentScript extends ContentScript {
 
   async fetchAttestations(context) {
     await this.goto(homeUrl)
+    let idContrat
     try {
-      const idContrat = await this.waitForRequestInterception('idContrat')
+      idContrat = await this.waitForRequestInterception('idContrat')
     } catch (err) {
       this.log('warn', 'Found no contract, no attestation to fetch')
       return false
@@ -446,9 +447,7 @@ class EngieContentScript extends ContentScript {
     const isBrowserNotYoung = await this.checkForElement(`p`, {
       includesText: 'Votre navigateur n’est plus tout jeune'
     })
-    const isOldBrowser = window.location.href.includes(
-      'page-navigateur-obsolete.html'
-    )
+    const isOldBrowser = await this.checkForElement('.c-oldBrowsersBanner')
     const isConnected = await this.checkForElement(
       `a[data-testid=deconnexion-trigger]`
     )
@@ -477,10 +476,7 @@ class EngieContentScript extends ContentScript {
         includesText: `Mettre à jour`
       })
     } else if (currentState === 'oldBrowser') {
-      await this.runInWorker(
-        'click',
-        `a[href='https://particuliers.engie.fr/']`
-      )
+      await this.goto(baseUrl)
     } else if (currentState === 'loginPage') {
       // the user will do the login
     } else {
