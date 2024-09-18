@@ -6239,7 +6239,7 @@ const facturesUrl =
   'https://particuliers.engie.fr/espace-client/prive/mes-factures.html'
 const factureDownloadUrl =
   'https://particuliers.engie.fr/cel-ws/api/private/document/mobile/'
-const logoutLinkSelector = '[data-testid=deconnexion-trigger]'
+const logoutLinkSelector = '#header-deconnexion'
 const passwordSelector = 'input[type=password]'
 const loginSelector = 'input[type=email]'
 
@@ -6503,6 +6503,9 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
   }
 
   async fetchFactures(context, contract) {
+    if (!contract) {
+      return
+    }
     await this.goto(facturesUrl)
     const interception = await this.waitForRequestInterception('factures')
     const derniereFacture = interception.response.derniereFacture
@@ -6605,8 +6608,13 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
 
   async fetchAttestations(context) {
     await this.goto(homeUrl)
-
-    const idContrat = await this.waitForRequestInterception('idContrat')
+    let idContrat
+    try {
+      idContrat = await this.waitForRequestInterception('idContrat')
+    } catch (err) {
+      this.log('warn', 'Found no contract, no attestation to fetch')
+      return false
+    }
     const vendorRef = idContrat.response
 
     const contract = {
@@ -6658,9 +6666,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
     const isBrowserNotYoung = await this.checkForElement(`p`, {
       includesText: 'Votre navigateur n’est plus tout jeune'
     })
-    const isOldBrowser = window.location.href.includes(
-      'page-navigateur-obsolete.html'
-    )
+    const isOldBrowser = await this.checkForElement('.c-oldBrowsersBanner')
     const isConnected = await this.checkForElement(
       `a[data-testid=deconnexion-trigger]`
     )
@@ -6689,10 +6695,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
         includesText: `Mettre à jour`
       })
     } else if (currentState === 'oldBrowser') {
-      await this.runInWorker(
-        'click',
-        `a[href='https://particuliers.engie.fr/']`
-      )
+      await this.goto(baseUrl)
     } else if (currentState === 'loginPage') {
       // the user will do the login
     } else {
