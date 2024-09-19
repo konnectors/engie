@@ -444,19 +444,11 @@ class EngieContentScript extends ContentScript {
     const isAlreadyLogged = await this.checkForElement(
       `img[src*='illu-inbox-success.svg']`
     )
-    const isBrowserNotYoung = await this.checkForElement(`p`, {
-      includesText: 'Votre navigateur n’est plus tout jeune'
-    })
-    const isOldBrowser = await this.checkForElement('.c-oldBrowsersBanner')
     const isConnected = await this.checkForElement(
       `a[data-testid=deconnexion-trigger]`
     )
 
-    if (isBrowserNotYoung) {
-      return 'browserNotYoung'
-    } else if (isOldBrowser) {
-      return 'oldBrowser'
-    } else if (isAlreadyLogged) {
+    if (isAlreadyLogged) {
       return 'alreadyLogged'
     } else if (isConnected) {
       return 'connected'
@@ -471,12 +463,6 @@ class EngieContentScript extends ContentScript {
       await this.runInWorker('click', 'button', {
         includesText: `Accéder à l'Espace Client`
       })
-    } else if (currentState === 'browserNotYoung') {
-      await this.runInWorker('click', 'button', {
-        includesText: `Mettre à jour`
-      })
-    } else if (currentState === 'oldBrowser') {
-      await this.goto(baseUrl)
     } else if (currentState === 'loginPage') {
       // the user will do the login
     } else {
