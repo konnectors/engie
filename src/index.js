@@ -257,7 +257,7 @@ class EngieContentScript extends ContentScript {
         number: interception.response.fixe
       })
     }
-    if (interception.response.fixe) {
+    if (interception.response.portable) {
       phone.push({
         type: 'mobile',
         number: interception.response.portable
@@ -265,22 +265,22 @@ class EngieContentScript extends ContentScript {
     }
 
     const identity = {
-      email: interception.response.email,
+      email: [interception.response.email],
       name: {
         fullName: interception.response.titulaire
       },
       address: [
         {
-          formattedAddress: interception.response.adresseComplete,
-          street: `${interception.response.numeroVoie} ${interception.response.libelleVoie}`,
-          postCode: interception.response.cp,
-          city: interception.response.ville
+          formattedAddress: interception.response.adresse.adresseComplete,
+          street: `${interception.response.adresse.numeroVoie} ${interception.response.adresse.libelleVoie}`,
+          postCode: interception.response.adresse.cp,
+          city: interception.response.adresse.ville
         }
       ],
       phone
     }
 
-    await this.saveIdentity(identity)
+    await this.saveIdentity({ contact: identity })
   }
 
   async fetchFactures(context, contract) {
