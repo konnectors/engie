@@ -6248,7 +6248,7 @@ const requestInterceptor = new cozy_clisk_dist_contentscript__WEBPACK_IMPORTED_M
     identifier: 'idContrat',
     method: 'GET',
     url: '/cel-facturation-ws/api/private/contrat/idContrat',
-    serialization: 'text'
+    serialization: 'json'
   },
   {
     identifier: 'identifiant',
@@ -6458,8 +6458,14 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       await this.saveCredentials(this.store.userCredentials)
     }
 
-    const contract = await this.fetchAttestations(context)
-    await this.fetchFactures(context, contract)
+    const contracts = await this.fetchAttestations(context)
+    if (contracts && contracts.length) {
+      for (const contract of contracts) {
+        await this.fetchFactures(context, contract)
+      }
+    } else {
+      this.log('warn', 'Found no contract to fetch')
+    }
     await this.fetchIdentity()
   }
 
@@ -6476,7 +6482,7 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
         number: interception.response.fixe
       })
     }
-    if (interception.response.fixe) {
+    if (interception.response.portable) {
       phone.push({
         type: 'mobile',
         number: interception.response.portable
@@ -6484,22 +6490,22 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
     }
 
     const identity = {
-      email: interception.response.email,
+      email: [interception.response.email],
       name: {
         fullName: interception.response.titulaire
       },
       address: [
         {
-          formattedAddress: interception.response.adresseComplete,
-          street: `${interception.response.numeroVoie} ${interception.response.libelleVoie}`,
-          postCode: interception.response.cp,
-          city: interception.response.ville
+          formattedAddress: interception.response.adresse.adresseComplete,
+          street: `${interception.response.adresse.numeroVoie} ${interception.response.adresse.libelleVoie}`,
+          postCode: interception.response.adresse.cp,
+          city: interception.response.adresse.ville
         }
       ],
       phone
     }
 
-    await this.saveIdentity(identity)
+    await this.saveIdentity({ contact: identity })
   }
 
   async fetchFactures(context, contract) {
@@ -6615,47 +6621,51 @@ class EngieContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       this.log('warn', 'Found no contract, no attestation to fetch')
       return false
     }
-    const vendorRef = idContrat.response
+    const vendorRefs = idContrat.response
 
-    const contract = {
+    if (!vendorRefs) return false
+    const contracts = vendorRefs.map(vendorRef => ({
       id: vendorRef,
       name: vendorRef
-    }
+    }))
 
-    await this.saveFiles(
-      [
-        {
-          forceReplaceFile: true,
-          filename: `justificatif de domicile.pdf`,
-          vendorRef,
-          fileurl:
-            baseUrl + '/cel-ws/api/private/pdf/attestationTitulaireContrat',
-          method: 'post',
-          searchParams: [
-            ['idContrat', vendorRef],
-            ['is2DDoc', true]
-          ],
-          fileIdAttributes: ['vendorRef'],
-          fileAttributes: {
-            metadata: {
-              contentAuthor: 'engie',
-              carbonCopy: true,
-              issueDate: new Date(),
-              datetime: new Date(),
-              datetimeLabel: 'startDate'
+    for (const contract of contracts) {
+      await this.saveFiles(
+        [
+          {
+            forceReplaceFile: true,
+            filename: `justificatif de domicile.pdf`,
+            vendorRef: contract.id,
+            fileurl:
+              baseUrl + '/cel-ws/api/private/pdf/attestationTitulaireContrat',
+            method: 'post',
+            searchParams: [
+              ['idContrat', contract.id],
+              ['is2DDoc', true]
+            ],
+            fileIdAttributes: ['vendorRef'],
+            fileAttributes: {
+              metadata: {
+                contentAuthor: 'engie',
+                carbonCopy: true,
+                issueDate: new Date(),
+                datetime: new Date(),
+                datetimeLabel: 'startDate'
+              }
             }
           }
+        ],
+        {
+          context,
+          contract,
+          fileIdAttributes: ['vendorRef'],
+          contentType: 'application/pdf',
+          qualificationLabel: 'energy_invoice'
         }
-      ],
-      {
-        context,
-        contract,
-        fileIdAttributes: ['vendorRef'],
-        contentType: 'application/pdf',
-        qualificationLabel: 'energy_invoice'
-      }
-    )
-    return contract
+      )
+    }
+
+    return contracts
   }
 
   async getCurrentState() {
